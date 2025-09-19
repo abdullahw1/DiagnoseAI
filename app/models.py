@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
+import bcrypt
 from app import db, login_manager
 
 @login_manager.user_loader
@@ -21,12 +21,16 @@ class User(UserMixin, db.Model):
     cases = db.relationship('Case', backref='user', lazy=True, cascade='all, delete-orphan')
     
     def set_password(self, password):
-        """Hash and set the user's password."""
-        self.password_hash = generate_password_hash(password)
+        """Hash and set the user's password using bcrypt."""
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        self.password_hash = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
     
     def check_password(self, password):
-        """Check if the provided password matches the hash."""
-        return check_password_hash(self.password_hash, password)
+        """Check if the provided password matches the hash using bcrypt."""
+        password_bytes = password.encode('utf-8')
+        hash_bytes = self.password_hash.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hash_bytes)
     
     def __repr__(self):
         return f'<User {self.username}>'

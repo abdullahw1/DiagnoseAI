@@ -13,7 +13,7 @@ def create_app(config_name='default'):
     
     # Configuration
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://user:pass@localhost:5432/diagnoseai')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://diagnoseai_user:diagnoseai_pass@localhost:5432/diagnoseai')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads')
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -30,11 +30,11 @@ def create_app(config_name='default'):
     # Import models to ensure they're registered with SQLAlchemy
     from app import models
     
-    # Register blueprints (will be created in later tasks)
-    # from app.auth import bp as auth_bp
-    # app.register_blueprint(auth_bp, url_prefix='/auth')
+    # Register blueprints
+    from app.auth import bp as auth_bp
+    app.register_blueprint(auth_bp, url_prefix='/auth')
     
-    # from app.main import bp as main_bp
-    # app.register_blueprint(main_bp)
+    from app.main import bp as main_bp
+    app.register_blueprint(main_bp)
     
     return app
