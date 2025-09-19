@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=diagnoseai.py
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://diagnoseai_user:diagnoseai_pass@db:5432/diagnoseai
+      - SECRET_KEY=your-secret-key-change-in-production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - UPLOAD_FOLDER=/app/static/uploads
+    volumes:
+      - ./static/uploads:/app/static/uploads
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=diagnoseai
+      - POSTGRES_USER=diagnoseai_user
+      - POSTGRES_PASSWORD=diagnoseai_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U diagnoseai_user -d diagnoseai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
