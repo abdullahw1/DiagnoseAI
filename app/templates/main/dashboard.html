@@ -6,10 +6,9 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h2>
             <div>
-                <button class="btn btn-primary" disabled>
+                <a href="{{ url_for('main.upload') }}" class="btn btn-primary">
                     <i class="fas fa-upload me-1"></i>Upload Image
-                    <small class="d-block">Coming Soon</small>
-                </button>
+                </a>
             </div>
         </div>
     </div>
@@ -54,7 +53,7 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h5 class="card-title">Pending Review</h5>
-                        <h2>{{ cases|rejectattr('reports')|list|length + cases|selectattr('reports')|rejectattr('reports.0.is_finalized')|list|length }}</h2>
+                        <h2>{{ cases|length - (cases|selectattr('reports')|selectattr('reports.0.is_finalized')|list|length) }}</h2>
                     </div>
                     <div class="align-self-center">
                         <i class="fas fa-clock fa-2x"></i>
@@ -91,18 +90,22 @@
                                     <td>{{ case.image_filename }}</td>
                                     <td>
                                         {% if case.reports and case.reports[0].is_finalized %}
-                                            <span class="badge bg-success">Completed</span>
-                                        {% elif case.reports %}
-                                            <span class="badge bg-warning">Draft Ready</span>
+                                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>Completed</span>
+                                        {% elif case.status == 'draft_ready' and case.reports %}
+                                            <span class="badge bg-warning"><i class="fas fa-edit me-1"></i>Draft Ready</span>
+                                        {% elif case.status == 'ai_failed' %}
+                                            <span class="badge bg-danger"><i class="fas fa-exclamation-triangle me-1"></i>AI Failed</span>
+                                        {% elif case.status == 'uploaded' %}
+                                            <span class="badge bg-info"><i class="fas fa-spinner fa-spin me-1"></i>Processing</span>
                                         {% else %}
                                             <span class="badge bg-secondary">{{ case.status|title }}</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ case.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary" disabled>
+                                        <a href="{{ url_for('main.view_case', case_id=case.id) }}" class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-eye me-1"></i>View
-                                        </button>
+                                        </a>
                                     </td>
                                 </tr>
                                 {% endfor %}
