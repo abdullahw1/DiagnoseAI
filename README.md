@@ -49,7 +49,7 @@ DiagnoseAI is a Flask-based web application that streamlines the ultrasound imag
    docker-compose up --build
    ```
 
-4. The application will be available at `http://localhost:5000`
+4. The application will be available at `http://localhost:5003`
 
 ### Database Setup
 
@@ -98,8 +98,17 @@ When running for the first time, you'll need to create the database tables:
 
 5. Run the application:
    ```bash
+   # Option 1: Using the startup script (recommended)
+   python run_server.py
+   
+   # Option 2: Direct execution
+   python main.py
+   
+   # Option 3: Using Flask CLI (runs on default port 5000)
    flask run
    ```
+
+   The application will be available at `http://localhost:5003`
 
 ## Project Structure
 

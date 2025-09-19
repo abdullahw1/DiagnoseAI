@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="fas fa-folder-open me-2"></i>Case #{{ case.id }}</h2>
+                <p class="text-muted mb-0">Created: {{ case.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            </div>
+            <div>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-image me-2"></i>Ultrasound Image</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-file-image fa-4x text-muted"></i>
+                </div>
+                <h6>{{ case.image_filename }}</h6>
+                <p class="text-muted">Image viewing functionality will be implemented in a future update</p>
+                <div class="mt-3">
+                    <span class="badge bg-info">
+                        {% if case.status == 'uploaded' %}
+                            <i class="fas fa-upload me-1"></i>Uploaded
+                        {% elif case.status == 'processing' %}
+                            <i class="fas fa-spinner me-1"></i>Processing
+                        {% elif case.status == 'completed' %}
+                            <i class="fas fa-check me-1"></i>Completed
+                        {% else %}
+                            <i class="fas fa-question me-1"></i>{{ case.status|title }}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-notes-medical me-2"></i>Clinical Notes</h5>
+            </div>
+            <div class="card-body">
+                <div class="clinical-notes">
+                    {{ case.clinical_notes|nl2br }}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-file-medical me-2"></i>Report Status</h5>
+            </div>
+            <div class="card-body">
+                {% if case.reports %}
+                    {% set report = case.reports[0] %}
+                    {% if report.is_finalized %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Report Completed</strong><br>
+                            Final report is ready for download.
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-edit me-2"></i>
+                            <strong>Draft Available</strong><br>
+                            AI-generated draft is ready for review and editing.
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-clock me-2"></i>
+                        <strong>Pending AI Analysis</strong><br>
+                        Report generation will be implemented in a future update.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-history me-2"></i>Case Timeline</h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">Case Created</h6>
+                            <p class="text-muted mb-0">{{ case.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                            <small class="text-muted">Ultrasound image uploaded with clinical notes</small>
+                        </div>
+                    </div>
+                    
+                    {% if case.reports %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-warning"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">AI Analysis</h6>
+                                <p class="text-muted mb-0">{{ case.reports[0].created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                <small class="text-muted">Draft report generated by AI</small>
+                            </div>
+                        </div>
+                        
+                        {% if case.reports[0].is_finalized %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker bg-success"></div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">Report Finalized</h6>
+                                    <p class="text-muted mb-0">{{ case.reports[0].updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                    <small class="text-muted">Report reviewed and finalized</small>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.clinical-notes {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    border-left: 4px solid #0d6efd;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -2rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-content {
+    margin-left: 1rem;
+}
+</style>
+{% endblock %}

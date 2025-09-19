@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-upload me-2"></i>Upload Ultrasound Image</h4>
+                <p class="mb-0 text-muted">Upload an ultrasound image with clinical notes to create a new case</p>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="mb-4">
+                        {{ form.image.label(class="form-label") }}
+                        {{ form.image(class="form-control") }}
+                        {% if form.image.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.image.errors %}
+                                    <small>{{ error }}</small><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Supported formats: JPG, JPEG, PNG, GIF, BMP, TIFF. Maximum file size: 16MB.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        {{ form.clinical_notes.label(class="form-label") }}
+                        {{ form.clinical_notes(class="form-control") }}
+                        {% if form.clinical_notes.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.clinical_notes.errors %}
+                                    <small>{{ error }}</small><br>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Include patient history, symptoms, examination findings, or other relevant clinical information.
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-arrow-left me-1"></i>Cancel
+                        </a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6><i class="fas fa-shield-alt me-2"></i>Security & Privacy</h6>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li>All uploaded images are stored securely and associated only with your account</li>
+                    <li>Images are validated to ensure they are legitimate image files</li>
+                    <li>File names are sanitized and timestamped to prevent conflicts</li>
+                    <li>Clinical notes are encrypted in transit and at rest</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

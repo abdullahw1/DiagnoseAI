@@ -18,14 +18,18 @@ def app():
     template_dir = os.path.join(os.path.dirname(__file__), 'templates')
     app = Flask(__name__, template_folder=template_dir)
     
-    # Use a separate test database
-    test_db_url = 'postgresql://diagnoseai_user:diagnoseai_pass@localhost:5432/diagnoseai_test'
+    # Create temporary directory for test uploads
+    temp_dir = tempfile.mkdtemp()
+    
+    # Use SQLite for testing (simpler setup)
     app.config.update({
         'TESTING': True,
-        'SQLALCHEMY_DATABASE_URI': test_db_url,
+        'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
         'SQLALCHEMY_TRACK_MODIFICATIONS': False,
         'WTF_CSRF_ENABLED': False,  # Disable CSRF for testing
-        'SECRET_KEY': 'test-secret-key'
+        'SECRET_KEY': 'test-secret-key',
+        'UPLOAD_FOLDER': temp_dir,
+        'MAX_CONTENT_LENGTH': 16 * 1024 * 1024
     })
     
     # Initialize extensions
@@ -33,6 +37,14 @@ def app():
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
+    
+    # Register custom template filters
+    @app.template_filter('nl2br')
+    def nl2br_filter(text):
+        """Convert newlines to HTML line breaks."""
+        if text is None:
+            return ''
+        return text.replace('\n', '<br>\n')
     
     # Register blueprints
     from app.auth import bp as auth_bp
@@ -42,21 +54,7 @@ def app():
     app.register_blueprint(main_bp)
     
     with app.app_context():
-        # Create test database if it doesn't exist
-        from sqlalchemy import create_engine, text
-        from sqlalchemy.exc import ProgrammingError
-        
-        # Connect to postgres database to create test database
-        admin_engine = create_engine('postgresql://diagnoseai_user:diagnoseai_pass@localhost:5432/diagnoseai')
-        with admin_engine.connect() as conn:
-            conn.execute(text("COMMIT"))  # End any existing transaction
-            try:
-                conn.execute(text("CREATE DATABASE diagnoseai_test"))
-            except ProgrammingError:
-                # Database already exists
-                pass
-        
-        # Now create tables in test database
+        # Create tables in test database
         db.create_all()
         yield app
         
@@ -82,3 +80,31 @@ def user(app):
         db.session.add(user)
         db.session.commit()
         return user
+
+class AuthActions:
+    """Helper class for authentication actions in tests."""
+    
+    def __init__(self, client):
+        self._client = client
+    
+    def login(self, username='testuser', password='testpassword'):
+        """Log in a user."""
+        return self._client.post('/auth/login', data={
+            'username': username,
+            'password': password
+        }, follow_redirects=True)
+    
+    def logout(self):
+        """Log out the current user."""
+        return self._client.get('/auth/logout', follow_redirects=True)
+    
+    def get_csrf_token(self, url):
+        """Get CSRF token from a form page."""
+        response = self._client.get(url)
+        # For testing, we'll return a dummy token since CSRF is disabled
+        return 'test-csrf-token'
+
+@pytest.fixture
+def auth(client, user):
+    """Authentication helper fixture."""
+    return AuthActions(client)

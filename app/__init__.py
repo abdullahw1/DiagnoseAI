@@ -30,6 +30,14 @@ def create_app(config_name='default'):
     # Import models to ensure they're registered with SQLAlchemy
     from app import models
     
+    # Register custom template filters
+    @app.template_filter('nl2br')
+    def nl2br_filter(text):
+        """Convert newlines to HTML line breaks."""
+        if text is None:
+            return ''
+        return text.replace('\n', '<br>\n')
+    
     # Register blueprints
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')

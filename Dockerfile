@@ -24,7 +24,7 @@ ENV FLASK_APP=diagnoseai.py
 ENV FLASK_ENV=production
 
 # Expose port
-EXPOSE 5000
+EXPOSE 5003
 
 # Run the application
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+CMD ["python", "main.py"]

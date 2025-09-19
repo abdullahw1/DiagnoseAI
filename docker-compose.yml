@@ -4,7 +4,7 @@ services:
   web:
     build: .
     ports:
-      - "5000:5000"
+      - "5003:5003"
     environment:
       - FLASK_APP=diagnoseai.py
       - FLASK_ENV=development
