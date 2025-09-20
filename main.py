@@ -6,7 +6,11 @@ import os
 import socket
 import subprocess
 import sys
+from dotenv import load_dotenv
 from app import create_app
+
+# Load environment variables from .env file
+load_dotenv()
 
 def is_port_available(host, port):
     """Check if a port is available for use."""
@@ -57,8 +61,7 @@ def ensure_port_available(host, port, max_attempts=3):
     
     return is_port_available(host, port)
 
-# Set environment variables
-os.environ.setdefault('DATABASE_URL', 'postgresql://diagnoseai_user:diagnoseai_pass@localhost:5432/diagnoseai')
+# Set default environment variables (only if not already set)
 os.environ.setdefault('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 # Create Flask app

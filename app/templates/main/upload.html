@@ -45,12 +45,69 @@
                     </div>
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-md-2">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary me-md-2" id="cancelBtn">
                             <i class="fas fa-arrow-left me-1"></i>Cancel
                         </a>
-                        {{ form.submit(class="btn btn-primary") }}
+                        {{ form.submit(class="btn btn-primary", id="submitBtn") }}
                     </div>
                 </form>
+                
+                <!-- Processing indicator (hidden by default) -->
+                <div id="processingIndicator" class="text-center mt-4" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="mt-3">
+                        <h5><i class="fas fa-brain me-2"></i>Processing</h5>
+                        <p class="text-muted">AI is analyzing the image and generating a draft report...</p>
+                        <p class="text-muted"><small>This may take 30-60 seconds. Please do not close this page.</small></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const submitBtn = document.getElementById('submitBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const processingIndicator = document.getElementById('processingIndicator');
+            
+            form.addEventListener('submit', function(e) {
+                // Validate form before showing processing indicator
+                const imageInput = form.querySelector('input[type="file"]');
+                const notesInput = form.querySelector('textarea');
+                
+                if (!imageInput.files || imageInput.files.length === 0) {
+                    alert('Please select an image file.');
+                    e.preventDefault();
+                    return false;
+                }
+                
+                if (!notesInput.value || notesInput.value.trim().length < 10) {
+                    alert('Please enter clinical notes (at least 10 characters).');
+                    e.preventDefault();
+                    return false;
+                }
+                
+                // Show processing indicator after validation passes
+                processingIndicator.style.display = 'block';
+                
+                // Disable submit button to prevent double submission
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+                cancelBtn.style.display = 'none';
+                
+                // DO NOT disable form inputs - this prevents form submission
+                
+                // Scroll to processing indicator
+                processingIndicator.scrollIntoView({ behavior: 'smooth' });
+                
+                // Allow form to submit normally
+                return true;
+            });
+        });
+        </script>
             </div>
         </div>
         

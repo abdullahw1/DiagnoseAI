@@ -1,10 +1,11 @@
 import os
+from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from PIL import Image
 from app.models import Case, Report
-from app.forms import UploadForm
+from app.forms import UploadForm, ReportEditForm
 from app.ai_service import generate_draft_report, AIServiceError
 from app import db
 
@@ -43,6 +44,7 @@ def upload():
     """Handle ultrasound image upload and case creation."""
     form = UploadForm()
     
+
     if form.validate_on_submit():
         try:
             # Get the uploaded file
@@ -90,11 +92,16 @@ def upload():
             
             # Generate AI draft report automatically
             try:
-                current_app.logger.info(f'Generating AI draft report for case {case.id}')
+                current_app.logger.info(f'Starting AI draft report generation for case {case.id}')
+                current_app.logger.info(f'Image path: {file_path}')
+                current_app.logger.info(f'Clinical notes length: {len(case.clinical_notes or "")} characters')
+                
                 raw_response, formatted_text = generate_draft_report(
                     image_path=file_path,
                     clinical_notes=case.clinical_notes or ""
                 )
+                
+                current_app.logger.info(f'AI draft report generated, creating report record for case {case.id}')
                 
                 # Create report record
                 report = Report(
@@ -118,14 +125,14 @@ def upload():
                 current_app.logger.error(f'AI service error for case {case.id}: {str(e)}')
                 case.status = 'ai_failed'
                 db.session.commit()
-                flash(f'Case #{case.id} created successfully, but AI report generation failed. The case has been marked for manual review.', 'warning')
+                flash(f'Case #{case.id} created successfully, but AI report generation failed: {str(e)}. The case has been marked for manual review.', 'warning')
                 
             except Exception as e:
                 # Log unexpected errors
-                current_app.logger.error(f'Unexpected error during AI report generation for case {case.id}: {str(e)}')
+                current_app.logger.error(f'Unexpected error during AI report generation for case {case.id}: {str(e)}', exc_info=True)
                 case.status = 'ai_failed'
                 db.session.commit()
-                flash(f'Case #{case.id} created successfully, but AI report generation encountered an error. The case has been marked for manual review.', 'warning')
+                flash(f'Case #{case.id} created successfully, but AI report generation encountered an error: {str(e)}. The case has been marked for manual review.', 'warning')
             
             return redirect(url_for('main.dashboard'))
             
@@ -151,3 +158,68 @@ def view_case(case_id):
         report = case.reports[0]  # Get the first (and should be only) report
     
     return render_template('main/case_detail.html', title=f'Case #{case.id}', case=case, report=report)
+
+
+@bp.route('/case/<int:case_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_report(case_id):
+    """Edit and finalize a report for a specific case."""
+    case = Case.query.filter_by(id=case_id, user_id=current_user.id).first_or_404()
+    
+    # Check if case has a report
+    if not case.reports:
+        flash('No report found for this case.', 'error')
+        return redirect(url_for('main.view_case', case_id=case_id))
+    
+    report = case.reports[0]
+    
+    # Check if report is already finalized
+    if report.is_finalized:
+        flash('This report has already been finalized and cannot be edited.', 'warning')
+        return redirect(url_for('main.view_case', case_id=case_id))
+    
+    form = ReportEditForm()
+    
+    if form.validate_on_submit():
+        try:
+            # Update report text
+            report.final_text = form.report_text.data.strip()
+            report.updated_at = datetime.utcnow()
+            
+            if form.finalize_report.data:
+                # Finalize the report
+                report.is_finalized = True
+                case.status = 'completed'
+                db.session.commit()
+                
+                flash(f'Report for Case #{case.id} has been finalized successfully!', 'success')
+                current_app.logger.info(f'Report finalized for case {case.id} by user {current_user.id}')
+                
+                return redirect(url_for('main.view_case', case_id=case_id))
+                
+            elif form.save_draft.data:
+                # Save as draft
+                case.status = 'draft_edited'
+                db.session.commit()
+                
+                flash(f'Draft report for Case #{case.id} has been saved successfully!', 'success')
+                current_app.logger.info(f'Draft report saved for case {case.id} by user {current_user.id}')
+                
+                # Stay on edit page for further editing
+                
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while saving the report. Please try again.', 'error')
+            current_app.logger.error(f'Error saving report for case {case_id}: {str(e)}')
+    
+    # Pre-populate form with existing content
+    if request.method == 'GET':
+        # Use final_text if available, otherwise use draft_text
+        form.report_text.data = report.final_text or report.draft_text or ''
+        form.case_id.data = case_id
+    
+    return render_template('main/edit_report.html', 
+                         title=f'Edit Report - Case #{case.id}', 
+                         case=case, 
+                         report=report, 
+                         form=form)

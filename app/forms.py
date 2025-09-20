@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed
-from wtforms import TextAreaField, SubmitField
+from wtforms import TextAreaField, SubmitField, HiddenField
 from wtforms.validators import DataRequired, Length
 
 class UploadForm(FlaskForm):
@@ -21,3 +21,21 @@ class UploadForm(FlaskForm):
     })
     
     submit = SubmitField('Upload and Create Case')
+
+
+class ReportEditForm(FlaskForm):
+    """Form for editing and finalizing AI-generated draft reports."""
+    
+    report_text = TextAreaField('Report Content', validators=[
+        DataRequired(message='Report content is required.'),
+        Length(min=50, max=5000, message='Report content must be between 50 and 5000 characters.')
+    ], render_kw={
+        'placeholder': 'Edit the AI-generated draft report...',
+        'rows': 15,
+        'class': 'form-control'
+    })
+    
+    case_id = HiddenField()
+    
+    save_draft = SubmitField('Save Draft', render_kw={'class': 'btn btn-secondary me-2'})
+    finalize_report = SubmitField('Finalize Report', render_kw={'class': 'btn btn-success'})
