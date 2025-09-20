@@ -38,6 +38,33 @@ def create_app(config_name='default'):
             return ''
         return text.replace('\n', '<br>\n')
     
+    @app.template_filter('markdown_to_html')
+    def markdown_to_html_filter(text):
+        """Convert basic markdown formatting to HTML."""
+        if text is None:
+            return ''
+        
+        import re
+        from markupsafe import Markup
+        
+        # Convert **bold** to <strong>bold</strong>
+        text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+        
+        # Convert *italic* to <em>italic</em> (but not if it's already inside ** tags)
+        text = re.sub(r'(?<!\*)\*([^*]+?)\*(?!\*)', r'<em>\1</em>', text)
+        
+        # Convert numbered sections like "1. SECTION:" to styled headers
+        text = re.sub(r'^(\d+\.\s+)([A-Z\s:]+)$', r'<div class="report-section"><strong>\1\2</strong></div>', text, flags=re.MULTILINE)
+        
+        # Convert double newlines to paragraph breaks
+        text = re.sub(r'\n\s*\n', '<br><br>', text)
+        
+        # Convert single newlines to <br> tags
+        text = text.replace('\n', '<br>')
+        
+        # Return as safe HTML
+        return Markup(text)
+    
     # Register blueprints
     from app.auth import bp as auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')

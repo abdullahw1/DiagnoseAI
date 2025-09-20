@@ -65,7 +65,8 @@ class AIService:
             # Prepare the prompt
             prompt = self._create_prompt(clinical_notes)
             
-            # Make API call to GPT-4o
+            # Make API call to GPT-4o with timeout
+            logger.info("Starting OpenAI API call for draft report generation")
             response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
@@ -90,8 +91,10 @@ class AIService:
                     }
                 ],
                 max_tokens=1500,
-                temperature=0.3
+                temperature=0.3,
+                timeout=120  # 2 minute timeout
             )
+            logger.info("OpenAI API call completed successfully")
             
             # Extract response content
             raw_response = response.model_dump()

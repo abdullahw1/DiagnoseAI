@@ -30,13 +30,24 @@
                 <h6>{{ case.image_filename }}</h6>
                 <p class="text-muted">Image viewing functionality will be implemented in a future update</p>
                 <div class="mt-3">
-                    <span class="badge bg-info">
+                    <span class="badge 
+                        {% if case.status == 'completed' %}bg-success
+                        {% elif case.status == 'draft_ready' or case.status == 'draft_edited' %}bg-warning
+                        {% elif case.status == 'ai_failed' %}bg-danger
+                        {% else %}bg-info
+                        {% endif %}">
                         {% if case.status == 'uploaded' %}
                             <i class="fas fa-upload me-1"></i>Uploaded
                         {% elif case.status == 'processing' %}
                             <i class="fas fa-spinner me-1"></i>Processing
+                        {% elif case.status == 'draft_ready' %}
+                            <i class="fas fa-robot me-1"></i>Draft Ready
+                        {% elif case.status == 'draft_edited' %}
+                            <i class="fas fa-edit me-1"></i>Draft Edited
                         {% elif case.status == 'completed' %}
                             <i class="fas fa-check me-1"></i>Completed
+                        {% elif case.status == 'ai_failed' %}
+                            <i class="fas fa-exclamation-triangle me-1"></i>AI Failed
                         {% else %}
                             <i class="fas fa-question me-1"></i>{{ case.status|title }}
                         {% endif %}
@@ -70,11 +81,28 @@
                             <strong>Report Completed</strong><br>
                             Final report is ready for download.
                         </div>
+                        <div class="mt-3">
+                            <a href="#" class="btn btn-primary btn-sm me-2" disabled>
+                                <i class="fas fa-download me-1"></i>Download PDF
+                            </a>
+                            <a href="#" class="btn btn-outline-primary btn-sm" disabled>
+                                <i class="fas fa-file-text me-1"></i>Download Text
+                            </a>
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Download functionality will be implemented in the next phase.
+                            </small>
+                        </div>
                     {% else %}
                         <div class="alert alert-warning">
                             <i class="fas fa-edit me-2"></i>
                             <strong>Draft Available</strong><br>
                             AI-generated draft is ready for review and editing.
+                        </div>
+                        <div class="mt-3">
+                            <a href="{{ url_for('main.edit_report', case_id=case.id) }}" class="btn btn-warning">
+                                <i class="fas fa-edit me-1"></i>Review & Edit Report
+                            </a>
                         </div>
                     {% endif %}
                 {% elif case.status == 'ai_failed' %}
@@ -101,34 +129,56 @@
     </div>
 </div>
 
-{% if report and report.draft_text %}
+{% if report and (report.final_text or report.draft_text) %}
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5><i class="fas fa-robot me-2"></i>AI-Generated Draft Report</h5>
-                {% if not report.is_finalized %}
-                    <span class="badge bg-warning">Draft - Requires Review</span>
-                {% else %}
+                {% if report.is_finalized %}
+                    <h5><i class="fas fa-file-medical me-2"></i>Final Report</h5>
                     <span class="badge bg-success">Finalized</span>
+                {% else %}
+                    <h5><i class="fas fa-robot me-2"></i>AI-Generated Draft Report</h5>
+                    <span class="badge bg-warning">Draft - Requires Review</span>
                 {% endif %}
             </div>
             <div class="card-body">
-                <div class="draft-report">
-                    {{ report.draft_text|nl2br }}
+                <div class="report-content">
+                    {% if report.is_finalized and report.final_text %}
+                        {{ report.final_text|markdown_to_html }}
+                    {% else %}
+                        {{ report.draft_text|markdown_to_html }}
+                    {% endif %}
                 </div>
+                
                 {% if not report.is_finalized %}
                     <div class="mt-3 pt-3 border-top">
                         <div class="alert alert-warning mb-3">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             <strong>Important:</strong> This is an AI-generated preliminary report that requires review and validation by a qualified radiologist before clinical use.
                         </div>
-                        <p class="text-muted">
-                            <small>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('main.edit_report', case_id=case.id) }}" class="btn btn-warning">
+                                <i class="fas fa-edit me-1"></i>Review & Edit Report
+                            </a>
+                            <small class="text-muted">
                                 <i class="fas fa-info-circle me-1"></i>
-                                Report editing and finalization functionality will be implemented in a future update.
+                                Click to review, edit, and finalize this report
                             </small>
-                        </p>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Report Finalized:</strong> This report has been reviewed and finalized. It is ready for clinical use.
+                        </div>
+                        <div class="text-muted">
+                            <small>
+                                <i class="fas fa-lock me-1"></i>
+                                Finalized reports cannot be edited to maintain data integrity.
+                            </small>
+                        </div>
                     </div>
                 {% endif %}
             </div>
@@ -163,6 +213,17 @@
                                 <small class="text-muted">Draft report generated by AI</small>
                             </div>
                         </div>
+                        
+                        {% if case.status == 'draft_edited' %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker bg-info"></div>
+                                <div class="timeline-content">
+                                    <h6 class="mb-1">Report Edited</h6>
+                                    <p class="text-muted mb-0">{{ case.reports[0].updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                                    <small class="text-muted">Draft report reviewed and edited</small>
+                                </div>
+                            </div>
+                        {% endif %}
                         
                         {% if case.reports[0].is_finalized %}
                             <div class="timeline-item">
@@ -225,15 +286,50 @@
     margin-left: 1rem;
 }
 
-.draft-report {
+.report-content {
     background-color: #f8f9fa;
     padding: 1.5rem;
     border-radius: 0.375rem;
-    border-left: 4px solid #ffc107;
-    white-space: pre-wrap;
     word-wrap: break-word;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    line-height: 1.6;
+    line-height: 1.8;
+    border-left: 4px solid #28a745;
+}
+
+.card:has(.badge.bg-warning) .report-content {
+    border-left: 4px solid #ffc107;
+}
+
+.card:has(.badge.bg-success) .report-content {
+    border-left: 4px solid #28a745;
+}
+
+.report-content strong {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.report-content em {
+    color: #34495e;
+    font-style: italic;
+}
+
+/* Improve spacing for report sections */
+.report-content br + br {
+    line-height: 2.5;
+}
+
+.report-section {
+    margin: 1rem 0 0.5rem 0;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.report-section strong {
+    color: #1a365d;
+    font-size: 1.05em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 </style>
 {% endblock %}
