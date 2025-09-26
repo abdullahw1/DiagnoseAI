@@ -6,19 +6,24 @@ services:
     ports:
       - "5003:5003"
     environment:
-      - FLASK_APP=diagnoseai.py
-      - FLASK_ENV=development
+      - FLASK_APP=start.py
+      - FLASK_ENV=production
       - DATABASE_URL=postgresql://diagnoseai_user:diagnoseai_pass@db:5432/diagnoseai
-      - SECRET_KEY=your-secret-key-change-in-production
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - UPLOAD_FOLDER=/app/static/uploads
+      - UPLOAD_FOLDER=/app/uploads
     volumes:
-      - ./static/uploads:/app/static/uploads
-      - .:/app
+      - uploads_data:/app/uploads
+      - instance_data:/app/instance
     depends_on:
       db:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5003/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   db:
     image: postgres:15-alpine
@@ -29,8 +34,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U diagnoseai_user -d diagnoseai"]
       interval: 10s
@@ -38,5 +41,22 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Optional: Nginx reverse proxy for production
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - web
+    restart: unless-stopped
+    profiles:
+      - production
+
 volumes:
   postgres_data:
+  uploads_data:
+  instance_data:
