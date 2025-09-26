@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-plus me-2"></i>Create New Radiology Case</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data" novalidate>
+                    {{ form.hidden_tag() }}
+                    
+                    <!-- Patient Selection -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="fas fa-user me-2"></i>Patient Information
+                            </h6>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            {{ form.patient_id.label(class="form-label") }}
+                            {{ form.patient_id(class="form-select" + (" is-invalid" if form.patient_id.errors else "")) }}
+                            {% if form.patient_id.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.patient_id.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Don't see the patient? <a href="{{ url_for('main.new_patient') }}" target="_blank">Register a new patient</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Study Information -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="fas fa-x-ray me-2"></i>Study Information
+                            </h6>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            {{ form.study_type.label(class="form-label") }}
+                            {{ form.study_type(class="form-select") }}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            {{ form.body_part.label(class="form-label") }}
+                            {{ form.body_part(class="form-control") }}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            {{ form.priority.label(class="form-label") }}
+                            {{ form.priority(class="form-select") }}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.referring_physician.label(class="form-label") }}
+                            {{ form.referring_physician(class="form-control") }}
+                        </div>
+                    </div>
+                    
+                    <!-- Clinical Information -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="fas fa-notes-medical me-2"></i>Clinical Information
+                            </h6>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            {{ form.indication.label(class="form-label") }}
+                            {{ form.indication(class="form-control" + (" is-invalid" if form.indication.errors else "")) }}
+                            {% if form.indication.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.indication.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            {{ form.clinical_history.label(class="form-label") }}
+                            {{ form.clinical_history(class="form-control") }}
+                        </div>
+                    </div>
+                    
+                    <!-- Image Upload -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-primary border-bottom pb-2 mb-3">
+                                <i class="fas fa-image me-2"></i>Medical Image
+                            </h6>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            {{ form.image.label(class="form-label") }}
+                            {{ form.image(class="form-control" + (" is-invalid" if form.image.errors else "")) }}
+                            {% if form.image.errors %}
+                                <div class="invalid-feedback">
+                                    {% for error in form.image.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Supported formats: JPG, JPEG, PNG, GIF, BMP, TIFF, DICOM
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Cancel
+                        </a>
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh patient dropdown if new patient window is closed
+window.addEventListener('focus', function() {
+    // You could add AJAX here to refresh the patient dropdown
+    // if a new patient was added in another window
+});
+</script>
+{% endblock %}

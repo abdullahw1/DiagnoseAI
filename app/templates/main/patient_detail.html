@@ -1,132 +1,127 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- Header Section -->
-<div class="row mb-4">
+<div class="row">
     <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h2 class="mb-1"><i class="fas fa-hospital me-2 text-primary"></i>Dashboard</h2>
-                <p class="text-muted mb-0">Welcome back, {{ current_user.full_name }}</p>
+                <h2><i class="fas fa-user me-2 text-primary"></i>{{ patient.full_name }}</h2>
+                <p class="text-muted mb-0">Patient ID: {{ patient.patient_id }}</p>
             </div>
             <div class="btn-group" role="group">
-                <a href="{{ url_for('main.new_patient') }}" class="btn btn-outline-primary">
-                    <i class="fas fa-user-plus me-1"></i>New Patient
-                </a>
-                <a href="{{ url_for('main.new_case') }}" class="btn btn-primary">
+                <a href="{{ url_for('main.new_case') }}?patient={{ patient.id }}" class="btn btn-primary">
                     <i class="fas fa-plus me-1"></i>New Case
                 </a>
+                <a href="{{ url_for('main.all_patients') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Patients
+                </a>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Statistics Cards -->
-<div class="row mb-4">
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-primary bg-opacity-10 rounded-3 p-3">
-                            <i class="fas fa-clipboard-list fa-2x text-primary"></i>
-                        </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h6 class="text-muted mb-1">Total Cases</h6>
-                        <h3 class="mb-0">{{ total_cases }}</h3>
-                        <small class="text-success">
-                            <i class="fas fa-arrow-up me-1"></i>Active studies
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-success bg-opacity-10 rounded-3 p-3">
-                            <i class="fas fa-check-circle fa-2x text-success"></i>
-                        </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h6 class="text-muted mb-1">Finalized Reports</h6>
-                        <h3 class="mb-0">{{ finalized_reports }}</h3>
-                        <small class="text-success">
-                            <i class="fas fa-check me-1"></i>Ready for review
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-warning bg-opacity-10 rounded-3 p-3">
-                            <i class="fas fa-clock fa-2x text-warning"></i>
-                        </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h6 class="text-muted mb-1">Pending Review</h6>
-                        <h3 class="mb-0">{{ pending_cases }}</h3>
-                        <small class="text-warning">
-                            <i class="fas fa-exclamation-circle me-1"></i>Awaiting interpretation
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-shrink-0">
-                        <div class="bg-info bg-opacity-10 rounded-3 p-3">
-                            <i class="fas fa-users fa-2x text-info"></i>
-                        </div>
-                    </div>
-                    <div class="flex-grow-1 ms-3">
-                        <h6 class="text-muted mb-1">Total Patients</h6>
-                        <h3 class="mb-0">{{ total_patients }}</h3>
-                        <small class="text-info">
-                            <i class="fas fa-user-check me-1"></i>Registered patients
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Quick Actions & Recent Activity -->
 <div class="row">
-    <!-- Recent Cases -->
-    <div class="col-lg-8 mb-4">
+    <!-- Patient Information -->
+    <div class="col-lg-4 mb-4">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0 pb-0">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Patient Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Name:</strong></div>
+                    <div class="col-sm-8">{{ patient.full_name }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Patient ID:</strong></div>
+                    <div class="col-sm-8">{{ patient.patient_id }}</div>
+                </div>
+                {% if patient.age %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Age:</strong></div>
+                    <div class="col-sm-8">{{ patient.age }} years</div>
+                </div>
+                {% endif %}
+                {% if patient.date_of_birth %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>DOB:</strong></div>
+                    <div class="col-sm-8">{{ patient.date_of_birth.strftime('%m/%d/%Y') }}</div>
+                </div>
+                {% endif %}
+                {% if patient.gender %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Gender:</strong></div>
+                    <div class="col-sm-8">{{ patient.gender|title }}</div>
+                </div>
+                {% endif %}
+                {% if patient.medical_record_number %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>MRN:</strong></div>
+                    <div class="col-sm-8">{{ patient.medical_record_number }}</div>
+                </div>
+                {% endif %}
+                <div class="row mb-3">
+                    <div class="col-sm-4"><strong>Registered:</strong></div>
+                    <div class="col-sm-8">{{ patient.created_at.strftime('%m/%d/%Y') }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0"><i class="fas fa-phone me-2"></i>Contact Information</h6>
+            </div>
+            <div class="card-body">
+                {% if patient.phone %}
+                <div class="row mb-2">
+                    <div class="col-sm-4"><strong>Phone:</strong></div>
+                    <div class="col-sm-8">{{ patient.phone }}</div>
+                </div>
+                {% endif %}
+                {% if patient.email %}
+                <div class="row mb-2">
+                    <div class="col-sm-4"><strong>Email:</strong></div>
+                    <div class="col-sm-8">{{ patient.email }}</div>
+                </div>
+                {% endif %}
+                {% if patient.address %}
+                <div class="row mb-2">
+                    <div class="col-sm-4"><strong>Address:</strong></div>
+                    <div class="col-sm-8">{{ patient.address }}</div>
+                </div>
+                {% endif %}
+                {% if patient.emergency_contact %}
+                <div class="row mb-2">
+                    <div class="col-sm-4"><strong>Emergency:</strong></div>
+                    <div class="col-sm-8">
+                        {{ patient.emergency_contact }}
+                        {% if patient.emergency_phone %}
+                            <br><small class="text-muted">{{ patient.emergency_phone }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Cases History -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0">
                 <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-history me-2 text-primary"></i>Recent Cases</h5>
-                    <a href="{{ url_for('main.all_cases') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                    <h5 class="mb-0"><i class="fas fa-history me-2 text-primary"></i>Case History</h5>
+                    <span class="badge bg-primary">{{ cases|length }} Cases</span>
                 </div>
             </div>
             <div class="card-body">
-                {% if recent_cases %}
+                {% if cases %}
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
                                     <th>Case #</th>
-                                    <th>Patient</th>
                                     <th>Study Type</th>
                                     <th>Priority</th>
                                     <th>Status</th>
@@ -135,17 +130,9 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for case in recent_cases %}
+                                {% for case in cases %}
                                 <tr>
-                                    <td>
-                                        <strong class="text-primary">{{ case.formatted_case_number }}</strong>
-                                    </td>
-                                    <td>
-                                        <div>
-                                            <strong>{{ case.patient.full_name }}</strong>
-                                            <br><small class="text-muted">ID: {{ case.patient.patient_id }}</small>
-                                        </div>
-                                    </td>
+                                    <td><strong class="text-primary">{{ case.formatted_case_number }}</strong></td>
                                     <td>
                                         <span class="badge bg-light text-dark">{{ case.study_type }}</span>
                                         {% if case.body_part %}
@@ -203,71 +190,15 @@
                         </table>
                     </div>
                 {% else %}
-                    <div class="text-center py-5">
+                    <div class="text-center py-4">
                         <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
                         <h5 class="text-muted">No cases yet</h5>
-                        <p class="text-muted mb-3">Create your first radiology case to get started.</p>
-                        <a href="{{ url_for('main.new_case') }}" class="btn btn-primary">
+                        <p class="text-muted mb-3">Create the first case for this patient.</p>
+                        <a href="{{ url_for('main.new_case') }}?patient={{ patient.id }}" class="btn btn-primary">
                             <i class="fas fa-plus me-1"></i>Create New Case
                         </a>
                     </div>
                 {% endif %}
-            </div>
-        </div>
-    </div>
-    
-    <!-- Quick Actions & Stats -->
-    <div class="col-lg-4">
-        <!-- Quick Actions -->
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white border-0">
-                <h6 class="mb-0"><i class="fas fa-bolt me-2 text-warning"></i>Quick Actions</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('main.new_patient') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-user-plus me-2"></i>Register New Patient
-                    </a>
-                    <a href="{{ url_for('main.new_case') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-2"></i>Create New Case
-                    </a>
-                    <a href="{{ url_for('main.pending_cases') }}" class="btn btn-outline-warning">
-                        <i class="fas fa-clock me-2"></i>Review Pending Cases
-                    </a>
-                    <a href="{{ url_for('main.all_patients') }}" class="btn btn-outline-info">
-                        <i class="fas fa-users me-2"></i>Patient Directory
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Today's Summary -->
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-0">
-                <h6 class="mb-0"><i class="fas fa-calendar-day me-2 text-success"></i>Today's Summary</h6>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-6 border-end">
-                        <h4 class="text-primary mb-1">{{ today_cases }}</h4>
-                        <small class="text-muted">New Cases</small>
-                    </div>
-                    <div class="col-6">
-                        <h4 class="text-success mb-1">{{ today_reports }}</h4>
-                        <small class="text-muted">Reports Finalized</small>
-                    </div>
-                </div>
-                <hr>
-                <div class="row text-center">
-                    <div class="col-6 border-end">
-                        <h4 class="text-warning mb-1">{{ urgent_cases }}</h4>
-                        <small class="text-muted">Urgent Cases</small>
-                    </div>
-                    <div class="col-6">
-                        <h4 class="text-danger mb-1">{{ stat_cases }}</h4>
-                        <small class="text-muted">STAT Cases</small>
-                    </div>
-                </div>
             </div>
         </div>
     </div>

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="fas fa-clipboard-list me-2 text-primary"></i>All Cases</h2>
+            <a href="{{ url_for('main.new_case') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>New Case
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                {% if cases %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Case #</th>
+                                    <th>Patient</th>
+                                    <th>Study Type</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Study Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for case in cases %}
+                                <tr>
+                                    <td><strong class="text-primary">{{ case.formatted_case_number }}</strong></td>
+                                    <td>
+                                        <strong>{{ case.patient.full_name }}</strong>
+                                        <br><small class="text-muted">ID: {{ case.patient.patient_id }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ case.study_type }}</span>
+                                        {% if case.body_part %}
+                                            <br><small class="text-muted">{{ case.body_part }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if case.priority == 'stat' %}
+                                            <span class="badge bg-danger">STAT</span>
+                                        {% elif case.priority == 'urgent' %}
+                                            <span class="badge bg-warning">Urgent</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Routine</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if case.reports and case.reports[0].is_finalized %}
+                                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>Finalized</span>
+                                        {% elif case.status == 'draft_ready' and case.reports %}
+                                            <span class="badge bg-warning"><i class="fas fa-edit me-1"></i>Draft Ready</span>
+                                        {% elif case.status == 'ai_failed' %}
+                                            <span class="badge bg-danger"><i class="fas fa-exclamation-triangle me-1"></i>AI Failed</span>
+                                        {% elif case.status == 'processing' %}
+                                            <span class="badge bg-info"><i class="fas fa-spinner fa-spin me-1"></i>Processing</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ case.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ case.study_date.strftime('%m/%d/%Y') }}</small>
+                                        <br><small class="text-muted">{{ case.study_date.strftime('%I:%M %p') }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('main.view_case', case_id=case.id) }}" 
+                                               class="btn btn-outline-primary" title="View Case">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if case.reports and case.reports[0].is_finalized %}
+                                                <a href="{{ url_for('main.download_pdf_report', case_id=case.id) }}" 
+                                                   class="btn btn-outline-success" title="Download Report">
+                                                    <i class="fas fa-download"></i>
+                                                </a>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-outline-danger" 
+                                                    onclick="confirmDelete('{{ case.id }}', '{{ case.formatted_case_number }}', '{{ case.patient.full_name }}')"
+                                                    title="Delete Case">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No cases yet</h5>
+                        <p class="text-muted mb-3">Create your first radiology case to get started.</p>
+                        <a href="{{ url_for('main.new_case') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Create New Case
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Case Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone!
+                </div>
+                <p>Are you sure you want to delete this case?</p>
+                <ul class="list-unstyled">
+                    <li><strong>Case:</strong> <span id="deleteCaseNumber"></span></li>
+                    <li><strong>Patient:</strong> <span id="deletePatientName"></span></li>
+                </ul>
+                <p class="text-muted">This will permanently delete the case record, any reports, and the uploaded medical image.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Delete Case
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(caseId, caseNumber, patientName) {
+    document.getElementById('deleteCaseNumber').textContent = caseNumber;
+    document.getElementById('deletePatientName').textContent = patientName;
+    document.getElementById('deleteForm').action = '/case/' + caseId + '/delete';
+    
+    var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+</script>
+{% endblock %}

@@ -44,7 +44,18 @@
             </div>
             <div class="card-body">
                 <div class="clinical-notes-sidebar">
-                    {{ case.clinical_notes|nl2br }}
+                    <strong>Indication:</strong><br>
+                    {{ case.indication|nl2br if case.indication else 'No indication provided.' }}
+                    
+                    {% if case.clinical_history %}
+                    <br><br><strong>Clinical History:</strong><br>
+                    {{ case.clinical_history|nl2br }}
+                    {% endif %}
+                    
+                    {% if case.body_part %}
+                    <br><br><strong>Body Part:</strong><br>
+                    {{ case.body_part }}
+                    {% endif %}
                 </div>
             </div>
         </div>

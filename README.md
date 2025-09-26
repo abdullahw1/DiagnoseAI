@@ -49,6 +49,39 @@ DiagnoseAI is a Flask-based web application that streamlines the ultrasound imag
    docker-compose up --build
    ```
 
+## Production Deployment
+
+### Quick Deploy Script
+```bash
+./deploy.sh
+```
+
+### Manual Production Setup
+1. **Configure Production Environment**
+   ```bash
+   cp .env.production .env
+   # Edit .env with your production settings
+   ```
+
+2. **Deploy with Docker Compose**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Deploy with HTTPS (nginx)**
+   ```bash
+   # Configure SSL certificates in ./ssl/
+   docker-compose --profile production up -d
+   ```
+
+### Cloud Deployment
+- **AWS**: ECS/Fargate with RDS PostgreSQL
+- **Google Cloud**: Cloud Run with Cloud SQL
+- **Azure**: Container Instances with PostgreSQL
+- **DigitalOcean**: App Platform or Droplets
+
+📖 **See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment guide**
+
 4. The application will be available at `http://localhost:5003`
 
 ### Database Setup
