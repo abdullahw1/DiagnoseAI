@@ -102,8 +102,9 @@ class Case(db.Model):
     clinical_history = db.Column(db.Text)
     referring_physician = db.Column(db.String(100))
     priority = db.Column(db.String(20), default='routine')  # routine, urgent, stat
-    image_filename = db.Column(db.String(255), nullable=False)
-    image_path = db.Column(db.String(500), nullable=False)
+    # Keep legacy fields for backward compatibility, but make them nullable
+    image_filename = db.Column(db.String(255), nullable=True)
+    image_path = db.Column(db.String(500), nullable=True)
     status = db.Column(db.String(50), default='pending', nullable=False)
     study_date = db.Column(db.DateTime, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -111,13 +112,43 @@ class Case(db.Model):
     
     # Relationships
     reports = db.relationship('Report', backref='case', lazy=True, cascade='all, delete-orphan')
+    images = db.relationship('CaseImage', backref='case', lazy=True, cascade='all, delete-orphan', order_by='CaseImage.order_index')
     
     @property
     def formatted_case_number(self):
         return f"RAD-{self.case_number}"
     
+    @property
+    def primary_image(self):
+        """Get the first/primary image for the case."""
+        if self.images:
+            return self.images[0]
+        return None
+    
+    @property
+    def all_image_paths(self):
+        """Get all image paths for this case."""
+        return [img.image_path for img in self.images]
+    
     def __repr__(self):
         return f'<Case {self.case_number}: {self.patient.full_name if self.patient else "Unknown"}>'
+
+class CaseImage(db.Model):
+    __tablename__ = 'case_images'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    case_id = db.Column(db.Integer, db.ForeignKey('cases.id'), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    image_path = db.Column(db.String(500), nullable=False)
+    order_index = db.Column(db.Integer, default=0, nullable=False)  # For ordering images
+    description = db.Column(db.String(255))  # Optional description for each image
+    file_size = db.Column(db.Integer)  # File size in bytes
+    mime_type = db.Column(db.String(50))  # image/jpeg, image/png, etc.
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<CaseImage {self.filename} for Case {self.case_id}>'
 
 class Report(db.Model):
     __tablename__ = 'reports'

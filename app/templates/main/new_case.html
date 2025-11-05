@@ -86,25 +86,60 @@
                         </div>
                     </div>
                     
-                    <!-- Image Upload -->
+                    <!-- Multiple Image Upload -->
                     <div class="row mb-4">
                         <div class="col-12">
                             <h6 class="text-primary border-bottom pb-2 mb-3">
-                                <i class="fas fa-image me-2"></i>Ultrasound Image
+                                <i class="fas fa-images me-2"></i>Medical Images (Up to 4)
                             </h6>
+                            <p class="text-muted small mb-3">Upload 1-4 images for this case. The first image will be the primary image.</p>
                         </div>
                         
+                        <!-- Primary Image (Required) -->
                         <div class="col-12 mb-3">
-                            {{ form.image.label(class="form-label") }}
-                            {{ form.image(class="form-control" + (" is-invalid" if form.image.errors else "")) }}
-                            {% if form.image.errors %}
+                            {{ form.image1.label(class="form-label") }}
+                            {{ form.image1(class="form-control" + (" is-invalid" if form.image1.errors else "")) }}
+                            {% if form.image1.errors %}
                                 <div class="invalid-feedback">
-                                    {% for error in form.image.errors %}{{ error }}{% endfor %}
+                                    {% for error in form.image1.errors %}{{ error }}{% endfor %}
                                 </div>
                             {% endif %}
-                            <div class="form-text">
-                                Supported formats: JPG, JPEG, PNG, GIF, BMP, TIFF, DICOM
+                        </div>
+                        
+                        <!-- Additional Images (Optional) -->
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                {{ form.image2.label(class="form-label") }}
+                                {{ form.image2(class="form-control" + (" is-invalid" if form.image2.errors else "")) }}
+                                {% if form.image2.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.image2.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.image3.label(class="form-label") }}
+                                {{ form.image3(class="form-control" + (" is-invalid" if form.image3.errors else "")) }}
+                                {% if form.image3.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.image3.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                {{ form.image4.label(class="form-label") }}
+                                {{ form.image4(class="form-control" + (" is-invalid" if form.image4.errors else "")) }}
+                                {% if form.image4.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.image4.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Supported formats: JPG, JPEG, PNG, GIF, BMP, TIFF, DICOM. Maximum file size: 16MB per image.
                         </div>
                     </div>
                     

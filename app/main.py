@@ -11,7 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import re
 from sqlalchemy import func
-from app.models import Case, Report, Patient
+from app.models import Case, Report, Patient, CaseImage
 from app.forms import UploadForm, ReportEditForm, PatientForm, CaseForm
 from app.ai_service import generate_draft_report, AIServiceError
 from app import db
@@ -31,6 +31,52 @@ def validate_image(file_path):
         return True
     except Exception:
         return False
+
+def save_case_image(file, case_id, order_index, user_id):
+    """Save a single case image and return the CaseImage object."""
+    if not file or not file.filename:
+        return None
+    
+    # Generate secure filename
+    filename = secure_filename(file.filename)
+    if not filename:
+        return None
+    
+    # Add timestamp to filename to avoid conflicts
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f_')
+    filename = timestamp + filename
+    
+    # Create user-specific upload directory
+    user_upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], str(user_id))
+    os.makedirs(user_upload_dir, exist_ok=True)
+    
+    # Save file path
+    file_path = os.path.join(user_upload_dir, filename)
+    
+    # Save the file
+    file.save(file_path)
+    
+    # Validate the uploaded image
+    if not validate_image(file_path):
+        os.remove(file_path)  # Clean up invalid file
+        return None
+    
+    # Get file info
+    file_size = os.path.getsize(file_path)
+    mime_type = file.content_type or 'image/jpeg'
+    
+    # Create CaseImage record
+    case_image = CaseImage(
+        case_id=case_id,
+        filename=filename,
+        original_filename=file.filename,
+        image_path=file_path,
+        order_index=order_index,
+        file_size=file_size,
+        mime_type=mime_type
+    )
+    
+    return case_image
 
 @bp.route('/')
 def index():
@@ -150,36 +196,7 @@ def new_case():
             case_count = Case.query.count() + 1
             case_number = f"{case_count:06d}"
             
-            # Get the uploaded file
-            file = form.image.data
-            
-            # Generate secure filename
-            filename = secure_filename(file.filename)
-            if not filename:
-                flash('Invalid filename. Please select a valid image file.', 'error')
-                return render_template('main/new_case.html', title='New Case', form=form)
-            
-            # Add timestamp to filename to avoid conflicts
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f_')
-            filename = timestamp + filename
-            
-            # Create user-specific upload directory
-            user_upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], str(current_user.id))
-            os.makedirs(user_upload_dir, exist_ok=True)
-            
-            # Save file path
-            file_path = os.path.join(user_upload_dir, filename)
-            
-            # Save the file
-            file.save(file_path)
-            
-            # Validate the uploaded image
-            if not validate_image(file_path):
-                os.remove(file_path)  # Clean up invalid file
-                flash('The uploaded file is not a valid image. Please try again.', 'error')
-                return render_template('main/new_case.html', title='New Case', form=form)
-            
-            # Create new case record
+            # Create new case record first
             case = Case(
                 case_number=case_number,
                 user_id=current_user.id,
@@ -190,14 +207,42 @@ def new_case():
                 clinical_history=form.clinical_history.data,
                 referring_physician=form.referring_physician.data,
                 priority=form.priority.data,
-                image_filename=filename,
-                image_path=file_path,
                 status='processing'
             )
             
-            # Save to database
+            # Save case to get ID
             db.session.add(case)
+            db.session.flush()  # Get the case ID without committing
+            
+            # Process multiple images
+            image_fields = [form.image1, form.image2, form.image3, form.image4]
+            saved_images = []
+            images_saved = 0
+            
+            for i, image_field in enumerate(image_fields):
+                if image_field.data and image_field.data.filename:
+                    case_image = save_case_image(image_field.data, case.id, i, current_user.id)
+                    if case_image:
+                        db.session.add(case_image)
+                        saved_images.append(case_image.image_path)
+                        images_saved += 1
+                        
+                        # Set legacy fields for backward compatibility (use first image)
+                        if i == 0:
+                            case.image_filename = case_image.filename
+                            case.image_path = case_image.image_path
+                    else:
+                        flash(f'Failed to save image {i+1}. Please ensure it\'s a valid image file.', 'warning')
+            
+            if images_saved == 0:
+                flash('No valid images were uploaded. Please try again.', 'error')
+                return render_template('main/new_case.html', title='New Case', form=form)
+            
+            # Commit the case and images
             db.session.commit()
+            
+            # Use primary image path for AI processing
+            file_path = case.image_path
             
             # Generate AI draft report automatically
             try:
@@ -205,6 +250,7 @@ def new_case():
                 
                 # Combine clinical information for AI
                 clinical_notes = f"Indication: {case.indication}\n"
+                clinical_notes += f"Number of images: {images_saved}\n"
                 if case.clinical_history:
                     clinical_notes += f"Clinical History: {case.clinical_history}\n"
                 if case.body_part:
@@ -231,7 +277,7 @@ def new_case():
                 db.session.add(report)
                 db.session.commit()
                 
-                flash(f'Case {case.formatted_case_number} created successfully! AI draft report has been generated and is ready for review.', 'success')
+                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images! AI draft report has been generated and is ready for review.', 'success')
                 current_app.logger.info(f'AI draft report generated successfully for case {case.formatted_case_number}')
                 
             except AIServiceError as e:
@@ -239,22 +285,23 @@ def new_case():
                 current_app.logger.error(f'AI service error for case {case.formatted_case_number}: {str(e)}')
                 case.status = 'ai_failed'
                 db.session.commit()
-                flash(f'Case {case.formatted_case_number} created successfully, but AI report generation failed: {str(e)}. The case has been marked for manual review.', 'warning')
+                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images, but AI report generation failed: {str(e)}. The case has been marked for manual review.', 'warning')
                 
             except Exception as e:
                 # Log unexpected errors
                 current_app.logger.error(f'Unexpected error during AI report generation for case {case.formatted_case_number}: {str(e)}', exc_info=True)
                 case.status = 'ai_failed'
                 db.session.commit()
-                flash(f'Case {case.formatted_case_number} created successfully, but AI report generation encountered an error: {str(e)}. The case has been marked for manual review.', 'warning')
+                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images, but AI report generation encountered an error: {str(e)}. The case has been marked for manual review.', 'warning')
             
             return redirect(url_for('main.dashboard'))
             
         except Exception as e:
             db.session.rollback()
-            # Clean up file if it was saved
-            if 'file_path' in locals() and os.path.exists(file_path):
-                os.remove(file_path)
+            # Clean up any saved image files
+            for image_path in saved_images:
+                if os.path.exists(image_path):
+                    os.remove(image_path)
             flash('An error occurred while creating the case. Please try again.', 'error')
             current_app.logger.error(f'Case creation error for user {current_user.id}: {str(e)}')
     
@@ -264,43 +311,12 @@ def new_case():
 @bp.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload():
-    """Handle ultrasound image upload and case creation."""
+    """Handle multiple ultrasound image upload and case creation."""
     form = UploadForm()
     
-
     if form.validate_on_submit():
+        saved_images = []
         try:
-            # Get the uploaded file
-            file = form.image.data
-            
-            # Generate secure filename
-            filename = secure_filename(file.filename)
-            if not filename:
-                flash('Invalid filename. Please select a valid image file.', 'error')
-                return render_template('main/upload.html', title='Upload Image', form=form)
-            
-            # Add timestamp to filename to avoid conflicts
-            from datetime import datetime
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f_')
-            filename = timestamp + filename
-            
-            # Create user-specific upload directory
-            user_upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], str(current_user.id))
-            os.makedirs(user_upload_dir, exist_ok=True)
-            
-            # Save file path
-            file_path = os.path.join(user_upload_dir, filename)
-            
-            # Save the file
-            file.save(file_path)
-            
-            # Validate the uploaded image
-            if not validate_image(file_path):
-                os.remove(file_path)  # Clean up invalid file
-                flash('The uploaded file is not a valid image. Please try again.', 'error')
-                return render_template('main/upload.html', title='Upload Image', form=form)
-            
-            # Create new case record (legacy upload route - should use new_case instead)
             # Create a default patient for legacy uploads
             default_patient = Patient.query.filter_by(patient_id='LEGACY001').first()
             if not default_patient:
@@ -317,6 +333,7 @@ def upload():
             case_count = Case.query.count() + 1
             case_number = f"{case_count:06d}"
             
+            # Create case record first (without legacy image fields)
             case = Case(
                 case_number=case_number,
                 user_id=current_user.id,
@@ -324,22 +341,48 @@ def upload():
                 study_type='Ultrasound',
                 indication=form.clinical_notes.data.strip(),
                 priority='routine',
-                image_filename=filename,
-                image_path=file_path,
                 status='processing'
             )
             
-            # Save to database
+            # Save case to get ID
             db.session.add(case)
+            db.session.flush()  # Get the case ID without committing
+            
+            # Process multiple images
+            image_fields = [form.image1, form.image2, form.image3, form.image4]
+            images_saved = 0
+            
+            for i, image_field in enumerate(image_fields):
+                if image_field.data and image_field.data.filename:
+                    case_image = save_case_image(image_field.data, case.id, i, current_user.id)
+                    if case_image:
+                        db.session.add(case_image)
+                        saved_images.append(case_image.image_path)
+                        images_saved += 1
+                        
+                        # Set legacy fields for backward compatibility (use first image)
+                        if i == 0:
+                            case.image_filename = case_image.filename
+                            case.image_path = case_image.image_path
+                    else:
+                        flash(f'Failed to save image {i+1}. Please ensure it\'s a valid image file.', 'warning')
+            
+            if images_saved == 0:
+                flash('No valid images were uploaded. Please try again.', 'error')
+                return render_template('main/upload.html', title='Upload Images', form=form)
+            
+            # Commit the case and images
             db.session.commit()
             
-            # Generate AI draft report automatically
+            # Generate AI draft report using the primary image
             try:
-                current_app.logger.info(f'Starting AI draft report generation for case {case.formatted_case_number}')
-                current_app.logger.info(f'Image path: {file_path}')
+                primary_image_path = case.image_path  # First image
+                current_app.logger.info(f'Starting AI draft report generation for case {case.formatted_case_number} with {images_saved} images')
+                current_app.logger.info(f'Primary image path: {primary_image_path}')
                 
                 # Combine clinical information for AI
                 clinical_notes = f"Indication: {case.indication}\n"
+                clinical_notes += f"Number of images: {images_saved}\n"
                 if case.clinical_history:
                     clinical_notes += f"Clinical History: {case.clinical_history}\n"
                 if case.body_part:
@@ -348,7 +391,7 @@ def upload():
                 current_app.logger.info(f'Clinical notes length: {len(clinical_notes)} characters')
                 
                 raw_response, formatted_text = generate_draft_report(
-                    image_path=file_path,
+                    image_path=primary_image_path,
                     clinical_notes=clinical_notes
                 )
                 
@@ -368,7 +411,7 @@ def upload():
                 db.session.add(report)
                 db.session.commit()
                 
-                flash(f'Case {case.formatted_case_number} created successfully! AI draft report has been generated and is ready for review.', 'success')
+                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images! AI draft report has been generated and is ready for review.', 'success')
                 current_app.logger.info(f'AI draft report generated successfully for case {case.formatted_case_number}')
                 
             except AIServiceError as e:
@@ -376,26 +419,27 @@ def upload():
                 current_app.logger.error(f'AI service error for case {case.formatted_case_number}: {str(e)}')
                 case.status = 'ai_failed'
                 db.session.commit()
-                flash(f'Case {case.formatted_case_number} created successfully, but AI report generation failed: {str(e)}. The case has been marked for manual review.', 'warning')
+                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images, but AI report generation failed: {str(e)}. The case has been marked for manual review.', 'warning')
                 
             except Exception as e:
                 # Log unexpected errors
                 current_app.logger.error(f'Unexpected error during AI report generation for case {case.formatted_case_number}: {str(e)}', exc_info=True)
                 case.status = 'ai_failed'
                 db.session.commit()
-                flash(f'Case {case.formatted_case_number} created successfully, but AI report generation encountered an error: {str(e)}. The case has been marked for manual review.', 'warning')
+                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images, but AI report generation encountered an error: {str(e)}. The case has been marked for manual review.', 'warning')
             
             return redirect(url_for('main.dashboard'))
             
         except Exception as e:
             db.session.rollback()
-            # Clean up file if it was saved
-            if 'file_path' in locals() and os.path.exists(file_path):
-                os.remove(file_path)
-            flash('An error occurred while uploading your image. Please try again.', 'error')
+            # Clean up any saved image files
+            for image_path in saved_images:
+                if os.path.exists(image_path):
+                    os.remove(image_path)
+            flash('An error occurred while uploading your images. Please try again.', 'error')
             current_app.logger.error(f'Upload error for user {current_user.id}: {str(e)}')
     
-    return render_template('main/upload.html', title='Upload Image', form=form)
+    return render_template('main/upload.html', title='Upload Images', form=form)
 
 @bp.route('/case/<int:case_id>')
 @login_required
