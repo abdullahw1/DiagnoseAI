@@ -7,8 +7,24 @@ from datetime import date
 class UploadForm(FlaskForm):
     """Form for uploading ultrasound images with clinical notes."""
     
-    image = FileField('Ultrasound Image', validators=[
-        FileRequired(message='Please select an image file.'),
+    # Support up to 4 images
+    image1 = FileField('Primary Image', validators=[
+        FileRequired(message='Please select at least one image file.'),
+        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'], 
+                   message='Only image files are allowed (jpg, jpeg, png, gif, bmp, tiff).')
+    ])
+    
+    image2 = FileField('Additional Image 2', validators=[
+        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'], 
+                   message='Only image files are allowed (jpg, jpeg, png, gif, bmp, tiff).')
+    ])
+    
+    image3 = FileField('Additional Image 3', validators=[
+        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'], 
+                   message='Only image files are allowed (jpg, jpeg, png, gif, bmp, tiff).')
+    ])
+    
+    image4 = FileField('Additional Image 4', validators=[
         FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff'], 
                    message='Only image files are allowed (jpg, jpeg, png, gif, bmp, tiff).')
     ])
@@ -136,8 +152,24 @@ class CaseForm(FlaskForm):
         ('stat', 'STAT')
     ], default='routine', validators=[DataRequired()])
     
-    image = FileField('Medical Image', validators=[
-        FileRequired(message='Please select an image file.'),
+    # Support up to 4 images
+    image1 = FileField('Primary Image', validators=[
+        FileRequired(message='Please select at least one image file.'),
+        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'dcm'], 
+                   message='Only image files are allowed (jpg, jpeg, png, gif, bmp, tiff, dcm).')
+    ])
+    
+    image2 = FileField('Additional Image 2', validators=[
+        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'dcm'], 
+                   message='Only image files are allowed (jpg, jpeg, png, gif, bmp, tiff, dcm).')
+    ])
+    
+    image3 = FileField('Additional Image 3', validators=[
+        FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'dcm'], 
+                   message='Only image files are allowed (jpg, jpeg, png, gif, bmp, tiff, dcm).')
+    ])
+    
+    image4 = FileField('Additional Image 4', validators=[
         FileAllowed(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'dcm'], 
                    message='Only image files are allowed (jpg, jpeg, png, gif, bmp, tiff, dcm).')
     ])
