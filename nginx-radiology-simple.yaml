@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-radiology-config
+  namespace: default
+data:
+  radiology.conf: |
+    server {
+      listen 443 ssl;
+      server_name radiology.defendai.tech;
+      
+      ssl_protocols TLSv1.2 TLSv1.3;
+      ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+      ssl_certificate     /usr/local/nginx/conf/enterprise/tls.crt;
+      ssl_certificate_key /usr/local/nginx/conf/enterprise/tls.key;
+      ssl_session_cache shared:SSL:10m;
+      ssl_session_timeout 10m;
+      keepalive_timeout 70;
+      
+      # Increase client max body size for image uploads
+      client_max_body_size 50M;
+      
+      # Increase timeouts for AI processing
+      proxy_read_timeout 300s;
+      proxy_connect_timeout 75s;
+      proxy_send_timeout 300s;
+      
+      location / {
+        proxy_pass http://diagnoseai-service.radiology.svc.cluster.local:80;
+        
+        # Required forwarded headers
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Additional headers for Flask
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+      }
+    }
+    
+    # Redirect HTTP to HTTPS
+    server {
+      listen 80;
+      server_name radiology.defendai.tech;
+      return 301 https://$host$request_uri;
+    }

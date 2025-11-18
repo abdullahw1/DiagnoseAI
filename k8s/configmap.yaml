@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: diagnoseai-config
+  namespace: diagnoseai
+data:
+  FLASK_ENV: "production"
+  FLASK_APP: "main.py"
+  UPLOAD_FOLDER: "static/uploads"
+  MAX_CONTENT_LENGTH: "16777216"

@@ -1,0 +1,351 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: default
+data:
+  nginx.conf: |
+    worker_processes auto;
+    events { worker_connections 1024; }
+    http {
+      client_max_body_size 50M;
+      log_format json_logs escape=json '{'
+          '"remote_addr":"$remote_addr","remote_user":"$remote_user","time_local":"$time_local",'
+          '"request":"$request","status":"$status","body_bytes_sent":"$body_bytes_sent",'
+          '"http_referer":"$http_referer","http_user_agent":"$http_user_agent",'
+          '"host":"$host","request_time":"$request_time","upstream_response_time":"$upstream_response_time"'
+      '}';
+      access_log /dev/stdout json_logs;
+      error_log /dev/stderr;
+
+      #— COMMERCIAL blocks —
+      server {
+        listen 80;
+        server_name migration.chatrayz.com www.chatrayz.com *.chatrayz.com;
+        return 301 https://$host$request_uri;
+      }
+      # server{
+      #   listen 80;
+      #   server_name chatrayz.com;
+      #   return 301 https://www.chatrayz.com$request_uri;
+      # }
+      server {
+        listen 443 ssl;
+        server_name chatrayz.com;
+
+        ssl_certificate     /usr/local/nginx/conf/hostcert/tls.crt;
+        ssl_certificate_key /usr/local/nginx/conf/hostcert/tls.key;
+        return 301 https://www.chatrayz.com$request_uri;
+      }
+
+
+      # server {
+      #   listen 443 ssl;
+      #   server_name chatrayz.com *.chatrayz.com www.chatrayz.com;
+      #   ssl_certificate     /usr/local/nginx/conf/commercial/tls.crt;
+      #   ssl_certificate_key /usr/local/nginx/conf/commercial/tls.key;
+      #   ssl_protocols TLSv1.2 TLSv1.3;
+      #   ssl_session_cache shared:SSL:10m; ssl_session_timeout 10m;
+      #   location / {
+      #     return 301 https://www.chatrayz.com$request_uri;
+      #   }
+      # }
+      server {
+        listen 443 ssl;
+        server_name *.chatrayz.com www.chatrayz.com;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+        ssl_certificate     /usr/local/nginx/conf/commercial/tls.crt;
+        ssl_certificate_key /usr/local/nginx/conf/commercial/tls.key;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+        keepalive_timeout 70;
+
+        location / {
+          proxy_pass http://defendai-ui-service.commercial.svc.cluster.local:80;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        location /api/defendai {
+          proxy_pass http://defendai-be.commercial.svc.cluster.local:4000;
+          proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        location /socket {
+          proxy_pass http://defendai-be.commercial.svc.cluster.local:4001;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+        }
+      }
+      server {
+        listen 443 ssl;
+        server_name migration.chatrayz.com;
+        ssl_certificate     /usr/local/nginx/conf/commercial/tls.crt;
+        ssl_certificate_key /usr/local/nginx/conf/commercial/tls.key;
+        keepalive_timeout 70;
+        location / {
+          proxy_pass http://defendai-ui-service.commercial.svc.cluster.local:80;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        location /api/defendai {
+          proxy_pass http://defendai-be.commercial.svc.cluster.local:4000;
+          proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        location /socket {
+          proxy_pass http://defendai-be.commercial.svc.cluster.local:4001;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+        }
+        location /wauzeway {
+          proxy_pass http://waws-service.waws.svc.cluster.local:5001/wauzeway;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_redirect off;
+        }
+
+        # location ~* ^/(wauzeway.*|v1/chat/completions|v1/complete|openai/v1/chat/completions|chat/completions)$ {
+        #   proxy_pass http://waws-service.waws.svc.cluster.local:5001$request_uri;
+        #   proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr;
+        #   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        #   proxy_set_header X-Forwarded-Proto $scheme;
+        #   proxy_redirect off;
+        # }
+      }
+
+      server {
+        listen 443 ssl;
+        server_name *.defendai.tech playground.defendai.tech;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+        ssl_certificate     /usr/local/nginx/conf/enterprise/tls.crt;
+        ssl_certificate_key /usr/local/nginx/conf/enterprise/tls.key;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+        keepalive_timeout 70;
+        location / {
+          proxy_pass http://defendai-ui-service.enterprise.svc.cluster.local:80;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        location /api/defendai {
+          proxy_pass http://defendai-be.enterprise.svc.cluster.local:4000;
+          proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        location /socket {
+          proxy_pass http://defendai-be.enterprise.svc.cluster.local:4001;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+        }
+        location /agents/ {
+          rewrite ^/agents(/.*)$ $1 break;
+          proxy_pass http://defendai-agents-svc.enterprise.svc.cluster.local:5000;
+          proxy_read_timeout 1800;
+          proxy_connect_timeout 120s;
+          proxy_send_timeout 120s;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+        location ~* ^/(wauzeway.*|v1/chat/completions|v1/complete|openai/v1/chat/completions|chat/completions)$ {
+          proxy_pass http://waws-service.waws.svc.cluster.local:5001$request_uri;
+          proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_redirect off;
+        }
+      }
+      server {
+        listen 443 ssl;
+        server_name wauzeway.defendai.tech;
+        keepalive_timeout 70;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+        ssl_certificate     /usr/local/nginx/conf/enterprise/tls.crt;
+        ssl_certificate_key /usr/local/nginx/conf/enterprise/tls.key;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+
+        # Dedicated location for /wauzeway
+        location /wauzeway {
+          proxy_pass http://waws-service.waws.svc.cluster.local:5001;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_redirect off;
+        }
+      }
+      server {
+        listen 443 ssl;
+        server_name monitoring.defendai.tech;
+        keepalive_timeout 70;
+
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+        ssl_certificate     /usr/local/nginx/conf/enterprise/tls.crt;
+        ssl_certificate_key /usr/local/nginx/conf/enterprise/tls.key;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+
+        location / {
+          proxy_pass http://grafana.logging.svc.cluster.local:80;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+      }
+
+      server {
+        listen 443 ssl;
+        server_name docs.defendai.tech;
+        keepalive_timeout 70;
+
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+        ssl_certificate     /usr/local/nginx/conf/enterprise/tls.crt;
+        ssl_certificate_key /usr/local/nginx/conf/enterprise/tls.key;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+        
+            # Redirect root to /api-docs
+        location = / {
+          return 302 /redoc;
+        }
+
+        location / {
+          proxy_pass http://defendai-be.enterprise.svc.cluster.local:4000;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+      }
+            # Main server block for admin portal
+      server {
+        listen 443 ssl;
+        server_name admin.defendai.tech;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+        ssl_certificate     /usr/local/nginx/conf/enterprise/tls.crt;
+        ssl_certificate_key /usr/local/nginx/conf/enterprise/tls.key;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+        keepalive_timeout 70;
+
+        location / {
+          proxy_pass http://defendai-admin-portal-service.enterprise.svc.cluster.local:80;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+      }
+      server {
+        listen 443 ssl;
+        server_name n8n.defendai.tech;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+        ssl_certificate     /usr/local/nginx/conf/enterprise/tls.crt;
+        ssl_certificate_key /usr/local/nginx/conf/enterprise/tls.key;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+        keepalive_timeout 70;
+
+        location / {
+          proxy_pass http://n8n-service.automation.svc.cluster.local:80;
+          # WebSocket headers
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+
+          # Required forwarded headers
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+
+        }
+      }
+    server {
+      listen 443 ssl;
+      server_name radiology.defendai.tech;
+      ssl_protocols TLSv1.2 TLSv1.3;
+      ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+      ssl_certificate     /usr/local/nginx/conf/enterprise/tls.crt;
+      ssl_certificate_key /usr/local/nginx/conf/enterprise/tls.key;
+      ssl_session_cache shared:SSL:10m;
+      ssl_session_timeout 10m;
+      keepalive_timeout 70;
+      
+      # Increase client max body size for image uploads
+      client_max_body_size 50M;
+      
+      # Increase timeouts for AI processing
+      proxy_read_timeout 300s;
+      proxy_connect_timeout 75s;
+      proxy_send_timeout 300s;
+      
+      location / {
+          proxy_pass http://diagnoseai-service.radiology.svc.cluster.local:80;
+          
+          # Required forwarded headers
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          
+          # Additional headers for Flask
+          proxy_set_header X-Forwarded-Host $host;
+          proxy_set_header X-Forwarded-Port $server_port;
+      }
+    }
+
+      server {
+        listen 443 ssl;
+        server_name pgadmin.defendai.tech;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+        ssl_certificate     /usr/local/nginx/conf/enterprise/tls.crt;
+        ssl_certificate_key /usr/local/nginx/conf/enterprise/tls.key;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+        keepalive_timeout 70;
+
+        location / {
+          proxy_pass http://pgadmin-service.default.svc.cluster.local:80;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+      }
+
+
+
+
+      # Redirect all HTTP -> HTTPS
+      server {
+        listen 80;
+        server_name *.defendai.tech wauzeway.defendai.tech playground.defendai.tech docs.defendai.tech admin.defendai.tech pgadmin.defendai.tech n8n.defendai.tech radiology.defendai.tech monitoring.defendai.tech;
+        return 301 https://$host$request_uri;
+      }
+    }

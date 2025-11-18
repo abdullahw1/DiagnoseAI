@@ -1,0 +1,82 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diagnoseai
+  namespace: radiology
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: diagnoseai
+  template:
+    metadata:
+      labels:
+        app: diagnoseai
+    spec:
+      containers:
+      - name: diagnoseai
+        image: defendaitech.azurecr.io/defendai:diagnoseai.0.08
+        ports:
+        - containerPort: 5003
+        env:
+        # Flask config
+        - name: FLASK_ENV
+          value: "production"
+        - name: FLASK_APP
+          value: "main.py"
+        - name: SECRET_KEY
+          value: "63238119b6c362222886f9d68bee7646a4da0e3114fcf256c089878bf2f96baa"
+
+        # OpenAI config
+        - name: OPENAI_API_KEY
+          value: "your-openai-api-key-here"  # Add your OpenAI API key
+        
+        # PostgreSQL config (same as your n8n setup)
+        - name: DATABASE_URL
+          value: "postgresql://postgres:TomttVTPFxEcAg9UbMU9@wawsdb-azure.postgres.database.azure.com:5432/diagnoseai"
+        
+        # File upload config
+        - name: UPLOAD_FOLDER
+          value: "static/uploads"
+        - name: MAX_CONTENT_LENGTH
+          value: "16777216"
+        
+        # Disable proxy for OpenAI client
+        - name: HTTP_PROXY
+          value: ""
+        - name: HTTPS_PROXY
+          value: ""
+        - name: http_proxy
+          value: ""
+        - name: https_proxy
+          value: ""
+        
+
+        # resources:
+        #   requests:
+        #     memory: "128Mi"
+        #     cpu: "100m"
+        #   limits:
+        #     memory: "256Mi"
+        #     cpu: "200m"
+        # securityContext:
+        #   runAsUser: 0
+        #   runAsGroup: 0
+        #   allowPrivilegeEscalation: true
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: diagnoseai-service
+  namespace: radiology
+spec:
+  type: ClusterIP
+  selector:
+    app: diagnoseai
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5003

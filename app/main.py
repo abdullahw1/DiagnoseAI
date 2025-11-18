@@ -82,7 +82,7 @@ def save_case_image(file, case_id, order_index, user_id):
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
-    return redirect(url_for('auth.login'))
+    return render_template('main/landing.html', title='DiagnoseAI - AI-Powered Radiology')
 
 @bp.route('/dashboard')
 @login_required

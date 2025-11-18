@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diagnoseai-app
+  namespace: diagnoseai
+  labels:
+    app: diagnoseai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: diagnoseai
+  template:
+    metadata:
+      labels:
+        app: diagnoseai
+    spec:
+      containers:
+      - name: diagnoseai
+        image: your-registry/diagnoseai:latest  # Replace with your actual image
+        ports:
+        - containerPort: 5003
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://diagnoseai_user:diagnoseai_pass@postgres-service:5432/diagnoseai"
+        envFrom:
+        - configMapRef:
+            name: diagnoseai-config
+        - secretRef:
+            name: diagnoseai-secrets
+        volumeMounts:
+        - name: uploads-storage
+          mountPath: /app/static/uploads
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5003
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5003
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: uploads-storage
+        persistentVolumeClaim:
+          claimName: uploads-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uploads-pvc
+  namespace: diagnoseai
+spec:
+  accessModes:
+    - ReadWriteMany  # Multiple pods can write to this volume
+  resources:
+    requests:
+      storage: 20Gi
