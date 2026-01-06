@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-brain"></i> AI Testing - Liver Pathology Analysis
+                    </h4>
+                    <p class="mb-0 mt-2">Test the AI's ability to analyze ultrasound images without patient context</p>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Instructions -->
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle"></i> Testing Instructions</h5>
+                        <ul class="mb-0">
+                            <li>Upload liver ultrasound images to test AI accuracy</li>
+                            <li>No patient information required - pure image analysis</li>
+                            <li>Optionally specify the view type and any additional context</li>
+                            <li>The AI will analyze the image and provide detailed findings</li>
+                        </ul>
+                    </div>
+
+                    <!-- Upload Form -->
+                    <form method="POST" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group mb-4">
+                                    <label for="test_image" class="form-label">
+                                        <strong>Select Ultrasound Image</strong>
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="file" 
+                                           class="form-control" 
+                                           id="test_image" 
+                                           name="test_image" 
+                                           accept="image/*" 
+                                           required>
+                                    <div class="form-text">
+                                        Supported formats: JPG, PNG, GIF, BMP, TIFF (Max size: 16MB)
+                                    </div>
+                                    <div class="invalid-feedback">
+                                        Please select an image file.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="view_type" class="form-label">
+                                        <strong>View Type</strong> (Optional)
+                                    </label>
+                                    <select class="form-select" id="view_type" name="view_type">
+                                        <option value="">Select view type...</option>
+                                        <option value="Left Lobe TR View">Left Lobe TR View</option>
+                                        <option value="Portal Vein View">Portal Vein View</option>
+                                        <option value="Right Lobe Log View">Right Lobe Log View</option>
+                                        <option value="Sagittal View">Sagittal View</option>
+                                        <option value="Transverse View">Transverse View</option>
+                                        <option value="Longitudinal View">Longitudinal View</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                    <div class="form-text">
+                                        Helps the AI understand the imaging perspective
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="image_context" class="form-label">
+                                        <strong>Additional Context</strong> (Optional)
+                                    </label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="image_context" 
+                                           name="image_context" 
+                                           placeholder="e.g., suspected pathology, image quality notes">
+                                    <div class="form-text">
+                                        Any additional information about the image
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Expected Pathologies Reference -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-list"></i> Expected Pathologies in Test Set
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <strong>Left Lobe TR View:</strong>
+                                        <ul class="small">
+                                            <li>Dilated hepatic veins</li>
+                                            <li>Passive hepatic congestion</li>
+                                            <li>Coarse liver texture</li>
+                                            <li>Multiple hepatic cysts</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Portal Vein View:</strong>
+                                        <ul class="small">
+                                            <li>Cavernous transformation</li>
+                                            <li>Dilated portal vein</li>
+                                            <li>Portal vein thrombosis</li>
+                                            <li>Normal portal vein</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Right Lobe Log View:</strong>
+                                        <ul class="small">
+                                            <li>Ascites</li>
+                                            <li>Fatty liver</li>
+                                            <li>Hemangioma</li>
+                                            <li>Hepatic abscess</li>
+                                            <li>Hepatic edema</li>
+                                            <li>Acute hepatitis</li>
+                                            <li>Simple cyst</li>
+                                            <li>Soft tissue mass</li>
+                                            <li>Metastatic nodule</li>
+                                            <li>Pleural effusion</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-brain"></i> Analyze Image with AI
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Testing Tips -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb"></i> Testing Tips
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>For Best Results:</h6>
+                            <ul class="small">
+                                <li>Use clear, high-quality ultrasound images</li>
+                                <li>Ensure proper image orientation</li>
+                                <li>Include relevant anatomical landmarks</li>
+                                <li>Test with various pathology types</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Evaluation Criteria:</h6>
+                            <ul class="small">
+                                <li>Accuracy of pathology identification</li>
+                                <li>Completeness of findings description</li>
+                                <li>Appropriate medical terminology</li>
+                                <li>Confidence level in assessment</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Form validation
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+
+// File upload preview
+document.getElementById('test_image').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const fileSize = (file.size / 1024 / 1024).toFixed(2);
+        console.log(`Selected file: ${file.name} (${fileSize} MB)`);
+        
+        if (file.size > 16 * 1024 * 1024) {
+            alert('File size exceeds 16MB limit. Please select a smaller image.');
+            e.target.value = '';
+        }
+    }
+});
+</script>
+{% endblock %}

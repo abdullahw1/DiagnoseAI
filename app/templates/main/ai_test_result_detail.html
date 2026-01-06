@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-brain me-2"></i>AI Test Result</h2>
+                    <p class="text-muted mb-0">{{ result.original_filename }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('main.ai_test_results_list') }}" class="btn btn-secondary me-2">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Results
+                    </a>
+                    <button type="button" 
+                            class="btn btn-outline-danger" 
+                            onclick="confirmDelete({{ result.id }}, '{{ result.original_filename }}')">
+                        <i class="fas fa-trash me-1"></i>Delete
+                    </button>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Image and Details -->
+                <div class="col-md-4">
+                    <!-- Image Display -->
+                    <div class="card shadow mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-image me-2"></i>Ultrasound Image
+                            </h6>
+                        </div>
+                        <div class="card-body text-center">
+                            <img src="{{ url_for('main.serve_ai_test_image', result_id=result.id) }}" 
+                                 alt="{{ result.original_filename }}" 
+                                 class="img-fluid rounded shadow-sm"
+                                 style="max-height: 400px;">
+                        </div>
+                    </div>
+
+                    <!-- Test Details -->
+                    <div class="card shadow">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>Test Details
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-2">
+                                <div class="col-sm-5"><strong>Filename:</strong></div>
+                                <div class="col-sm-7">{{ result.original_filename }}</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-sm-5"><strong>File Size:</strong></div>
+                                <div class="col-sm-7">{{ (result.file_size / 1024 / 1024) | round(2) }} MB</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-sm-5"><strong>View Type:</strong></div>
+                                <div class="col-sm-7">
+                                    {% if result.view_type %}
+                                        <span class="badge bg-info">{{ result.view_type }}</span>
+                                    {% else %}
+                                        <span class="text-muted">Not specified</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-sm-5"><strong>Test Date:</strong></div>
+                                <div class="col-sm-7">{{ result.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                            </div>
+                            {% if result.image_context %}
+                            <div class="row mb-2">
+                                <div class="col-sm-5"><strong>Context:</strong></div>
+                                <div class="col-sm-7">{{ result.image_context }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Analysis and Evaluation -->
+                <div class="col-md-8">
+                    <!-- AI Analysis -->
+                    <div class="card shadow mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-robot me-2"></i>AI Analysis Report
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="ai-report-content">
+                                {{ result.ai_analysis | markdown_to_html | safe }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Evaluation Form -->
+                    <div class="card shadow">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-star me-2"></i>Performance Evaluation
+                                {% if result.is_evaluated %}
+                                    <span class="badge bg-success ms-2">Evaluated</span>
+                                {% else %}
+                                    <span class="badge bg-secondary ms-2">Not evaluated</span>
+                                {% endif %}
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" action="{{ url_for('main.evaluate_ai_test_result', result_id=result.id) }}">
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label"><strong>Accuracy</strong></label>
+                                            <select class="form-select" name="accuracy">
+                                                <option value="">Rate accuracy...</option>
+                                                {% for i in range(1, 6) %}
+                                                    <option value="{{ i }}" {% if result.accuracy_rating == i %}selected{% endif %}>
+                                                        {{ i }} Star{{ 's' if i != 1 else '' }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label"><strong>Completeness</strong></label>
+                                            <select class="form-select" name="completeness">
+                                                <option value="">Rate completeness...</option>
+                                                {% for i in range(1, 6) %}
+                                                    <option value="{{ i }}" {% if result.completeness_rating == i %}selected{% endif %}>
+                                                        {{ i }} Star{{ 's' if i != 1 else '' }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label"><strong>Terminology</strong></label>
+                                            <select class="form-select" name="terminology">
+                                                <option value="">Rate terminology...</option>
+                                                {% for i in range(1, 6) %}
+                                                    <option value="{{ i }}" {% if result.terminology_rating == i %}selected{% endif %}>
+                                                        {{ i }} Star{{ 's' if i != 1 else '' }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label"><strong>Overall</strong></label>
+                                            <select class="form-select" name="overall">
+                                                <option value="">Overall rating...</option>
+                                                {% for i in range(1, 6) %}
+                                                    <option value="{{ i }}" {% if result.overall_rating == i %}selected{% endif %}>
+                                                        {{ i }} Star{{ 's' if i != 1 else '' }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label"><strong>Expected Pathology</strong></label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   name="expected_pathology" 
+                                                   value="{{ result.expected_pathology or '' }}"
+                                                   placeholder="What pathology did you expect?">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label"><strong>AI Identified</strong></label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   name="ai_identified" 
+                                                   value="{{ result.ai_identified_pathology or '' }}"
+                                                   placeholder="What did the AI identify?">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="form-group mb-3">
+                                            <label class="form-label"><strong>Comments & Notes</strong></label>
+                                            <textarea class="form-control" 
+                                                      name="comments" 
+                                                      rows="3" 
+                                                      placeholder="Additional comments about the AI's performance...">{{ result.evaluation_comments or '' }}</textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save me-1"></i>
+                                        {% if result.is_evaluated %}Update Evaluation{% else %}Save Evaluation{% endif %}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Current Evaluation Display -->
+                    {% if result.is_evaluated %}
+                    <div class="card shadow mt-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-chart-bar me-2"></i>Current Evaluation
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-3">
+                                    <div class="mb-2">
+                                        {% for i in range(1, 6) %}
+                                            {% if result.accuracy_rating and i <= result.accuracy_rating %}
+                                                <i class="fas fa-star text-warning"></i>
+                                            {% else %}
+                                                <i class="far fa-star text-muted"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <small class="text-muted">Accuracy</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-2">
+                                        {% for i in range(1, 6) %}
+                                            {% if result.completeness_rating and i <= result.completeness_rating %}
+                                                <i class="fas fa-star text-warning"></i>
+                                            {% else %}
+                                                <i class="far fa-star text-muted"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <small class="text-muted">Completeness</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-2">
+                                        {% for i in range(1, 6) %}
+                                            {% if result.terminology_rating and i <= result.terminology_rating %}
+                                                <i class="fas fa-star text-warning"></i>
+                                            {% else %}
+                                                <i class="far fa-star text-muted"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <small class="text-muted">Terminology</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-2">
+                                        {% for i in range(1, 6) %}
+                                            {% if result.overall_rating and i <= result.overall_rating %}
+                                                <i class="fas fa-star text-warning"></i>
+                                            {% else %}
+                                                <i class="far fa-star text-muted"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <small class="text-muted">Overall</small>
+                                </div>
+                            </div>
+                            
+                            {% if result.average_rating %}
+                            <div class="text-center mt-3">
+                                <h5 class="text-primary">Average Rating: {{ result.average_rating | round(2) }}/5</h5>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this AI test result?</p>
+                <p class="fw-bold" id="deleteFileName"></p>
+                <p class="text-muted">This action cannot be undone. The image and analysis will be permanently deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.ai-report-content {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+.ai-report-content .report-section {
+    margin: 15px 0;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-left: 4px solid #007bff;
+}
+
+.ai-report-content strong {
+    color: #2c3e50;
+}
+
+.ai-report-content br {
+    margin-bottom: 8px;
+}
+</style>
+
+<script>
+function confirmDelete(resultId, filename) {
+    document.getElementById('deleteFileName').textContent = filename;
+    document.getElementById('deleteForm').action = `/ai-test/result/${resultId}/delete`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

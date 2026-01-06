@@ -11,7 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import re
 from sqlalchemy import func
-from app.models import Case, Report, Patient, CaseImage
+from app.models import Case, Report, Patient, CaseImage, AITestResult
 from app.forms import UploadForm, ReportEditForm, PatientForm, CaseForm
 from app.ai_service import generate_draft_report, AIServiceError
 from app import db
@@ -764,3 +764,261 @@ def view_case_image(case_id):
         current_app.logger.error(f'Error serving image for case {case_id}: {str(e)}')
         flash('Error loading image.', 'error')
         return redirect(url_for('main.view_case', case_id=case_id))
+
+
+@bp.route('/ai-test', methods=['GET', 'POST'])
+@login_required
+def ai_test():
+    """AI Testing page for analyzing ultrasound images without patient data."""
+    if request.method == 'POST':
+        try:
+            # Check if file was uploaded
+            if 'test_image' not in request.files:
+                flash('No image file selected.', 'error')
+                return redirect(request.url)
+            
+            file = request.files['test_image']
+            if file.filename == '':
+                flash('No image file selected.', 'error')
+                return redirect(request.url)
+            
+            if not allowed_file(file.filename):
+                flash('Invalid file type. Please upload a JPG, PNG, or other supported image format.', 'error')
+                return redirect(request.url)
+            
+            # Get optional context from form
+            image_context = request.form.get('image_context', '').strip()
+            view_type = request.form.get('view_type', '').strip()
+            
+            # Save uploaded file permanently for testing records
+            filename = secure_filename(file.filename)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f_')
+            saved_filename = f"ai_test_{timestamp}{filename}"
+            
+            # Create permanent test upload directory
+            test_upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'ai_tests', str(current_user.id))
+            os.makedirs(test_upload_dir, exist_ok=True)
+            
+            file_path = os.path.join(test_upload_dir, saved_filename)
+            file.save(file_path)
+            
+            # Validate the uploaded image
+            if not validate_image(file_path):
+                os.remove(file_path)
+                flash('Invalid image file. Please upload a valid image.', 'error')
+                return redirect(request.url)
+            
+            # Get file info
+            file_size = os.path.getsize(file_path)
+            mime_type = file.content_type or 'image/jpeg'
+            
+            # Generate AI analysis
+            try:
+                current_app.logger.info(f'Starting AI test analysis for image: {filename}')
+                
+                # Create clinical context for AI
+                clinical_notes = "AI TESTING MODE - No patient data available.\n"
+                if view_type:
+                    clinical_notes += f"Image Type: {view_type}\n"
+                if image_context:
+                    clinical_notes += f"Additional Context: {image_context}\n"
+                clinical_notes += "Please analyze this ultrasound image and provide detailed findings."
+                
+                raw_response, formatted_text = generate_draft_report(
+                    image_path=file_path,
+                    clinical_notes=clinical_notes
+                )
+                
+                current_app.logger.info(f'AI test analysis completed for image: {saved_filename}')
+                
+                # Save AI test result to database
+                try:
+                    ai_test_result = AITestResult(
+                        user_id=current_user.id,
+                        original_filename=file.filename,
+                        saved_filename=saved_filename,
+                        image_path=file_path,
+                        view_type=view_type,
+                        image_context=image_context,
+                        ai_analysis=formatted_text,
+                        raw_response=raw_response,
+                        file_size=file_size,
+                        mime_type=mime_type
+                    )
+                    
+                    db.session.add(ai_test_result)
+                    db.session.commit()
+                    
+                    current_app.logger.info(f'AI test result saved to database with ID: {ai_test_result.id}')
+                    
+                except Exception as db_error:
+                    current_app.logger.error(f'Failed to save AI test result to database: {str(db_error)}')
+                    db.session.rollback()
+                    # Continue anyway - don't fail the analysis because of DB issues
+                
+                # Return results (now with saved test result ID)
+                return render_template('main/ai_test_results.html', 
+                                     title='AI Test Results',
+                                     original_filename=file.filename,
+                                     view_type=view_type,
+                                     image_context=image_context,
+                                     ai_analysis=formatted_text,
+                                     raw_response=raw_response,
+                                     analysis_time=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                     test_result_id=ai_test_result.id if 'ai_test_result' in locals() else None)
+                
+            except AIServiceError as e:
+                # Clean up file on error
+                try:
+                    os.remove(file_path)
+                except OSError:
+                    pass
+                current_app.logger.error(f'AI service error during test: {str(e)}')
+                flash(f'AI analysis failed: {str(e)}', 'error')
+                return redirect(request.url)
+                
+            except Exception as e:
+                # Clean up file on error
+                try:
+                    os.remove(file_path)
+                except OSError:
+                    pass
+                current_app.logger.error(f'Unexpected error during AI test: {str(e)}', exc_info=True)
+                flash(f'AI analysis encountered an error: {str(e)}', 'error')
+                return redirect(request.url)
+                
+        except Exception as e:
+            current_app.logger.error(f'Error in AI test upload: {str(e)}')
+            flash('An error occurred while processing your request. Please try again.', 'error')
+            return redirect(request.url)
+    
+    return render_template('main/ai_test.html', title='AI Testing - Liver Pathology Analysis')
+
+
+@bp.route('/ai-test/results')
+@login_required
+def ai_test_results_list():
+    """View all saved AI test results."""
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Get all AI test results for current user, ordered by most recent
+    results = AITestResult.query.filter_by(user_id=current_user.id)\
+        .order_by(AITestResult.created_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Calculate some statistics
+    total_tests = AITestResult.query.filter_by(user_id=current_user.id).count()
+    evaluated_tests = AITestResult.query.filter_by(user_id=current_user.id)\
+        .filter(AITestResult.overall_rating.isnot(None)).count()
+    
+    # Calculate average ratings
+    avg_accuracy = db.session.query(db.func.avg(AITestResult.accuracy_rating))\
+        .filter_by(user_id=current_user.id)\
+        .filter(AITestResult.accuracy_rating.isnot(None)).scalar()
+    
+    avg_overall = db.session.query(db.func.avg(AITestResult.overall_rating))\
+        .filter_by(user_id=current_user.id)\
+        .filter(AITestResult.overall_rating.isnot(None)).scalar()
+    
+    stats = {
+        'total_tests': total_tests,
+        'evaluated_tests': evaluated_tests,
+        'avg_accuracy': round(avg_accuracy, 2) if avg_accuracy else None,
+        'avg_overall': round(avg_overall, 2) if avg_overall else None
+    }
+    
+    return render_template('main/ai_test_results_list.html', 
+                         title='AI Test Results History',
+                         results=results,
+                         stats=stats)
+
+
+@bp.route('/ai-test/result/<int:result_id>')
+@login_required
+def view_ai_test_result(result_id):
+    """View a specific AI test result."""
+    result = AITestResult.query.filter_by(id=result_id, user_id=current_user.id).first_or_404()
+    
+    return render_template('main/ai_test_result_detail.html', 
+                         title=f'AI Test Result - {result.original_filename}',
+                         result=result)
+
+
+@bp.route('/ai-test/result/<int:result_id>/image')
+@login_required
+def serve_ai_test_image(result_id):
+    """Serve the saved AI test image."""
+    result = AITestResult.query.filter_by(id=result_id, user_id=current_user.id).first_or_404()
+    
+    if not result.image_path or not os.path.exists(result.image_path):
+        flash('Image file not found.', 'error')
+        return redirect(url_for('main.view_ai_test_result', result_id=result_id))
+    
+    try:
+        return send_file(result.image_path, as_attachment=False)
+    except Exception as e:
+        current_app.logger.error(f'Error serving AI test image for result {result_id}: {str(e)}')
+        flash('Error loading image.', 'error')
+        return redirect(url_for('main.view_ai_test_result', result_id=result_id))
+
+
+@bp.route('/ai-test/result/<int:result_id>/evaluate', methods=['POST'])
+@login_required
+def evaluate_ai_test_result(result_id):
+    """Save evaluation for an AI test result."""
+    result = AITestResult.query.filter_by(id=result_id, user_id=current_user.id).first_or_404()
+    
+    try:
+        # Get evaluation data from form
+        result.accuracy_rating = request.form.get('accuracy', type=int)
+        result.completeness_rating = request.form.get('completeness', type=int)
+        result.terminology_rating = request.form.get('terminology', type=int)
+        result.overall_rating = request.form.get('overall', type=int)
+        result.expected_pathology = request.form.get('expected_pathology', '').strip()
+        result.ai_identified_pathology = request.form.get('ai_identified', '').strip()
+        result.evaluation_comments = request.form.get('comments', '').strip()
+        result.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        flash('Evaluation saved successfully!', 'success')
+        current_app.logger.info(f'AI test result {result_id} evaluated by user {current_user.id}')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('Error saving evaluation. Please try again.', 'error')
+        current_app.logger.error(f'Error saving evaluation for AI test result {result_id}: {str(e)}')
+    
+    return redirect(url_for('main.view_ai_test_result', result_id=result_id))
+
+
+@bp.route('/ai-test/result/<int:result_id>/delete', methods=['POST'])
+@login_required
+def delete_ai_test_result(result_id):
+    """Delete an AI test result and its associated image."""
+    result = AITestResult.query.filter_by(id=result_id, user_id=current_user.id).first_or_404()
+    
+    try:
+        # Delete the image file
+        if result.image_path and os.path.exists(result.image_path):
+            try:
+                os.remove(result.image_path)
+                current_app.logger.info(f'Deleted AI test image: {result.image_path}')
+            except OSError as e:
+                current_app.logger.warning(f'Could not delete AI test image {result.image_path}: {str(e)}')
+        
+        # Delete the database record
+        filename = result.original_filename
+        db.session.delete(result)
+        db.session.commit()
+        
+        flash(f'AI test result for "{filename}" has been deleted successfully.', 'success')
+        current_app.logger.info(f'AI test result {result_id} deleted by user {current_user.id}')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('Error deleting AI test result. Please try again.', 'error')
+        current_app.logger.error(f'Error deleting AI test result {result_id}: {str(e)}')
+    
+    return redirect(url_for('main.ai_test_results_list'))

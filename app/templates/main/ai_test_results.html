@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <!-- Header -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-check-circle"></i> AI Analysis Results
+                    </h4>
+                    <p class="mb-0 mt-2">Analysis completed for: <strong>{{ original_filename }}</strong></p>
+                </div>
+                
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Image File:</strong> {{ original_filename }}
+                        </div>
+                        <div class="col-md-3">
+                            {% if view_type %}
+                                <strong>View Type:</strong> {{ view_type }}
+                            {% else %}
+                                <strong>View Type:</strong> <em>Not specified</em>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Analysis Time:</strong> {{ analysis_time }}
+                        </div>
+                    </div>
+                    
+                    {% if image_context %}
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <strong>Additional Context:</strong> {{ image_context }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- AI Analysis Results -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-brain"></i> AI Analysis Report
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="ai-report-content">
+                        {{ ai_analysis | markdown_to_html | safe }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Raw Response (for debugging) -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-code"></i> 
+                        <a data-bs-toggle="collapse" href="#rawResponse" role="button" aria-expanded="false">
+                            Raw AI Response (Click to expand)
+                        </a>
+                    </h6>
+                </div>
+                <div class="collapse" id="rawResponse">
+                    <div class="card-body">
+                        <pre class="bg-light p-3 rounded"><code>{{ raw_response | tojson(indent=2) }}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Evaluation Form -->
+            <div class="card shadow mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-star"></i> Evaluate AI Performance
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form id="evaluationForm">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label"><strong>Accuracy</strong></label>
+                                    <select class="form-select" name="accuracy">
+                                        <option value="">Rate accuracy...</option>
+                                        <option value="5">Excellent (5/5)</option>
+                                        <option value="4">Good (4/5)</option>
+                                        <option value="3">Fair (3/5)</option>
+                                        <option value="2">Poor (2/5)</option>
+                                        <option value="1">Very Poor (1/5)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label"><strong>Completeness</strong></label>
+                                    <select class="form-select" name="completeness">
+                                        <option value="">Rate completeness...</option>
+                                        <option value="5">Excellent (5/5)</option>
+                                        <option value="4">Good (4/5)</option>
+                                        <option value="3">Fair (3/5)</option>
+                                        <option value="2">Poor (2/5)</option>
+                                        <option value="1">Very Poor (1/5)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label"><strong>Medical Terminology</strong></label>
+                                    <select class="form-select" name="terminology">
+                                        <option value="">Rate terminology...</option>
+                                        <option value="5">Excellent (5/5)</option>
+                                        <option value="4">Good (4/5)</option>
+                                        <option value="3">Fair (3/5)</option>
+                                        <option value="2">Poor (2/5)</option>
+                                        <option value="1">Very Poor (1/5)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label"><strong>Overall Rating</strong></label>
+                                    <select class="form-select" name="overall">
+                                        <option value="">Overall rating...</option>
+                                        <option value="5">Excellent (5/5)</option>
+                                        <option value="4">Good (4/5)</option>
+                                        <option value="3">Fair (3/5)</option>
+                                        <option value="2">Poor (2/5)</option>
+                                        <option value="1">Very Poor (1/5)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label"><strong>Expected Pathology</strong></label>
+                                    <input type="text" class="form-control" name="expected_pathology" 
+                                           placeholder="What pathology did you expect to find?">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label"><strong>AI Identified</strong></label>
+                                    <input type="text" class="form-control" name="ai_identified" 
+                                           placeholder="What did the AI identify?">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label class="form-label"><strong>Comments & Notes</strong></label>
+                                    <textarea class="form-control" name="comments" rows="3" 
+                                              placeholder="Additional comments about the AI's performance..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <button type="button" class="btn btn-success" onclick="saveEvaluation()">
+                                    <i class="fas fa-save"></i> Save Evaluation
+                                </button>
+                                <button type="button" class="btn btn-secondary ms-2" onclick="exportResults()">
+                                    <i class="fas fa-download"></i> Export Results
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <a href="{{ url_for('main.ai_test') }}" class="btn btn-primary btn-lg me-3">
+                        <i class="fas fa-plus"></i> Test Another Image
+                    </a>
+                    <a href="{{ url_for('main.ai_test_results_list') }}" class="btn btn-info btn-lg me-3">
+                        <i class="fas fa-history"></i> View All Results
+                    </a>
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-home"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.ai-report-content {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+.ai-report-content .report-section {
+    margin: 15px 0;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-left: 4px solid #007bff;
+}
+
+.ai-report-content strong {
+    color: #2c3e50;
+}
+
+.ai-report-content br {
+    margin-bottom: 8px;
+}
+
+pre code {
+    font-size: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+</style>
+
+<script>
+function saveEvaluation() {
+    const form = document.getElementById('evaluationForm');
+    const formData = new FormData(form);
+    const evaluation = {};
+    
+    for (let [key, value] of formData.entries()) {
+        evaluation[key] = value;
+    }
+    
+    // Add metadata
+    evaluation.image_file = '{{ original_filename }}';
+    evaluation.view_type = '{{ view_type }}';
+    evaluation.timestamp = new Date().toISOString();
+    
+    // Save to localStorage for now (in production, you'd send to server)
+    const evaluations = JSON.parse(localStorage.getItem('ai_evaluations') || '[]');
+    evaluations.push(evaluation);
+    localStorage.setItem('ai_evaluations', JSON.stringify(evaluations));
+    
+    alert('Evaluation saved successfully!');
+    console.log('Saved evaluation:', evaluation);
+}
+
+function exportResults() {
+    const results = {
+        image_file: '{{ original_filename }}',
+        view_type: '{{ view_type }}',
+        image_context: '{{ image_context }}',
+        ai_analysis: {{ ai_analysis | tojson }},
+        raw_response: {{ raw_response | tojson }},
+        timestamp: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai_test_results_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Auto-populate AI identified field based on analysis
+document.addEventListener('DOMContentLoaded', function() {
+    const aiAnalysis = {{ ai_analysis | tojson }};
+    const aiIdentifiedField = document.querySelector('input[name="ai_identified"]');
+    
+    // Try to extract key findings from the analysis
+    const findings = aiAnalysis.toLowerCase();
+    let identifiedConditions = [];
+    
+    // Common liver pathologies to look for
+    const pathologies = [
+        'fatty liver', 'steatosis', 'cirrhosis', 'fibrosis', 'hepatitis',
+        'cyst', 'hemangioma', 'abscess', 'mass', 'nodule', 'lesion',
+        'ascites', 'portal vein', 'thrombosis', 'congestion', 'edema',
+        'pleural effusion', 'gallbladder', 'bile duct'
+    ];
+    
+    pathologies.forEach(pathology => {
+        if (findings.includes(pathology)) {
+            identifiedConditions.push(pathology);
+        }
+    });
+    
+    if (identifiedConditions.length > 0) {
+        aiIdentifiedField.value = identifiedConditions.join(', ');
+    }
+});
+</script>
+{% endblock %}

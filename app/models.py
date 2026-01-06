@@ -164,3 +164,50 @@ class Report(db.Model):
     
     def __repr__(self):
         return f'<Report {self.id} for Case {self.case_id}>'
+
+
+class AITestResult(db.Model):
+    __tablename__ = 'ai_test_results'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    saved_filename = db.Column(db.String(255), nullable=False)
+    image_path = db.Column(db.String(500), nullable=False)
+    view_type = db.Column(db.String(100))
+    image_context = db.Column(db.Text)
+    expected_pathology = db.Column(db.String(255))
+    ai_analysis = db.Column(db.Text, nullable=False)
+    raw_response = db.Column(db.JSON)
+    file_size = db.Column(db.Integer)
+    mime_type = db.Column(db.String(50))
+    
+    # Evaluation fields (optional, filled when user evaluates)
+    accuracy_rating = db.Column(db.Integer)  # 1-5 stars
+    completeness_rating = db.Column(db.Integer)  # 1-5 stars
+    terminology_rating = db.Column(db.Integer)  # 1-5 stars
+    overall_rating = db.Column(db.Integer)  # 1-5 stars
+    ai_identified_pathology = db.Column(db.String(255))
+    evaluation_comments = db.Column(db.Text)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref='ai_test_results', lazy=True)
+    
+    @property
+    def average_rating(self):
+        """Calculate average rating from all rating fields."""
+        ratings = [r for r in [self.accuracy_rating, self.completeness_rating, 
+                              self.terminology_rating, self.overall_rating] if r is not None]
+        return sum(ratings) / len(ratings) if ratings else None
+    
+    @property
+    def is_evaluated(self):
+        """Check if this test result has been evaluated."""
+        return any([self.accuracy_rating, self.completeness_rating, 
+                   self.terminology_rating, self.overall_rating])
+    
+    def __repr__(self):
+        return f'<AITestResult {self.id}: {self.original_filename}>'
