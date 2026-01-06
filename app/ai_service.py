@@ -35,31 +35,13 @@ class AIService:
             raise AIServiceError("OpenAI API key not configured")
         
         try:
-            # Debug: Check OpenAI version and environment
+            # Debug: Check OpenAI version
             import openai
             logger.info(f"OpenAI library version: {openai.__version__}")
             
-            # Check for proxy environment variables
-            proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']
-            for var in proxy_vars:
-                if os.getenv(var):
-                    logger.warning(f"Found proxy environment variable: {var}={os.getenv(var)}")
-            
-            # Temporarily clear proxy environment variables for OpenAI client
-            old_env = {}
-            for var in proxy_vars:
-                if var in os.environ:
-                    old_env[var] = os.environ[var]
-                    del os.environ[var]
-            
-            try:
-                # Initialize OpenAI client with only the API key
-                self.client = OpenAI(api_key=api_key)
-                logger.info("OpenAI client initialized successfully")
-            finally:
-                # Restore proxy environment variables
-                for var, value in old_env.items():
-                    os.environ[var] = value
+            # Initialize OpenAI client with only the API key (minimal for v1.3.5)
+            self.client = OpenAI(api_key=api_key)
+            logger.info("OpenAI client initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize OpenAI client: {str(e)}")
             logger.error(f"Exception type: {type(e)}")

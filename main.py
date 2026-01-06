@@ -75,7 +75,7 @@ if __name__ == '__main__':
     # Only check port availability if this is the main process (not a Flask reloader child)
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         print("🏥 Starting DiagnoseAI...")
-        print("📊 Database: PostgreSQL")
+        print("📊 Database: SQLite (Local Development)")
         print(f"🌐 Server: http://{HOST}:{PORT}")
         print("🔐 Authentication: Enabled")
         
