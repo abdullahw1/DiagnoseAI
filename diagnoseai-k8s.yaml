@@ -26,15 +26,15 @@ spec:
         - name: FLASK_APP
           value: "main.py"
         - name: SECRET_KEY
-          value: "63238119b6c362222886f9d68bee7646a4da0e3114fcf256c089878bf2f96baa"
+          value: "your-secret-key-change-in-production"
 
         # OpenAI config
         - name: OPENAI_API_KEY
-          value: "your-openai-api-key-here"  # Add your OpenAI API key
+          value: "your-openai-api-key-here"  # Replace with your OpenAI API key
         
-        # PostgreSQL config (same as your n8n setup)
+        # PostgreSQL config
         - name: DATABASE_URL
-          value: "postgresql://postgres:TomttVTPFxEcAg9UbMU9@wawsdb-azure.postgres.database.azure.com:5432/diagnoseai"
+          value: "postgresql://user:password@host:5432/diagnoseai"
         
         # File upload config
         - name: UPLOAD_FOLDER
