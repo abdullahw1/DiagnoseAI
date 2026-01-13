@@ -6,7 +6,7 @@ import os
 import sys
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables FIRST
 load_dotenv()
 
 def main():
@@ -14,12 +14,15 @@ def main():
     print("🏥 DiagnoseAI - Local Development Setup")
     print("=" * 50)
     
-    # Check if OpenAI API key is set
-    if not os.getenv('OPENAI_API_KEY'):
-        print("⚠️  WARNING: OPENAI_API_KEY not set in .env file")
+    # Debug: Check if API key is loaded
+    api_key = os.getenv('OPENAI_API_KEY')
+    if not api_key or api_key == 'your-openai-api-key-here':
+        print("⚠️  WARNING: OPENAI_API_KEY not set or is placeholder")
         print("   AI features will not work without a valid API key")
-        print("   You can still test the basic functionality")
+        print("   Current value:", api_key[:20] + "..." if api_key else "None")
         print()
+    else:
+        print("✅ OpenAI API Key: Loaded successfully")
     
     # Check if database exists
     db_path = "/Users/abdullahwaheed/Downloads/radiology-ai-application/DiagnoseAI/instance/diagnoseai.db"
