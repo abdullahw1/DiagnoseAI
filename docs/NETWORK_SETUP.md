@@ -91,7 +91,7 @@ If your dad can't access it, you might need to allow the connection:
    # Reset database if needed:
    source venv/bin/activate
    flask db upgrade
-   python create_admin_user.py
+   python scripts/create_admin_user.py
    ```
 
 ## 🎯 Usage Examples

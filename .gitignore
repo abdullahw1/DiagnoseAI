@@ -126,3 +126,8 @@ static/uploads/*
 !static/uploads/.gitkeep
 migrations/versions/*
 !migrations/versions/.gitkeep
+
+# Log files
+*.log
+server.log
+flask.log

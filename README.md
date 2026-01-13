@@ -1,214 +1,375 @@
-# DiagnoseAI - Radiology Reporting Application
+# 🏥 DiagnoseAI - AI-Powered Radiology Reporting System
 
-DiagnoseAI is a Flask-based web application that streamlines the ultrasound image analysis workflow for healthcare professionals. The system allows users to upload ultrasound images with clinical notes, receive AI-generated preliminary draft reports using GPT-4o, and review/finalize reports within the application.
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
+[![Flask](https://img.shields.io/badge/Flask-3.0.3-green.svg)](https://flask.palletsprojects.com/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-orange.svg)](https://openai.com/)
+[![License](https://img.shields.io/badge/License-Educational-yellow.svg)](LICENSE)
 
-## Features
+DiagnoseAI is a comprehensive Flask-based web application designed to streamline ultrasound image analysis workflows for healthcare professionals. The system enables users to upload ultrasound images, receive AI-generated preliminary reports using GPT-4o, manage patient records, and conduct AI performance testing.
 
+## ✨ Key Features
+
+### 🔐 Authentication & User Management
 - Secure user authentication with bcrypt password hashing
-- Ultrasound image upload with clinical notes
-- AI-powered draft report generation using OpenAI GPT-4o
-- Report review and editing interface
-- PDF and text report downloads
-- Containerized deployment with Docker
+- Role-based access control
+- Session management with Flask-Login
 
-## Technology Stack
+### 📊 Patient & Case Management
+- Complete patient record management
+- Multi-image case support (up to 4 images per case)
+- Clinical notes and metadata tracking
+- Case status workflow (pending, reviewed, finalized)
 
-- **Backend**: Flask (Python)
-- **Database**: PostgreSQL 15
-- **Authentication**: Flask-Login with bcrypt
-- **AI Integration**: OpenAI GPT-4o API
-- **Containerization**: Docker & Docker Compose
-- **PDF Generation**: ReportLab
+### 🤖 AI-Powered Analysis
+- GPT-4o integration for ultrasound image analysis
+- Automated preliminary report generation
+- Support for multiple ultrasound views (Left Lobe TR, Portal Vein, etc.)
+- Structured JSON and formatted text reports
 
-## Quick Start
+### 📝 Report Management
+- Interactive report editing interface
+- Draft and final report versions
+- PDF and text export capabilities
+- Report history and versioning
 
-### Prerequisites
+### 🧪 AI Testing & Evaluation
+- Dedicated AI testing module for performance evaluation
+- Batch image testing capabilities
+- Star rating system for AI accuracy
+- Detailed test result analytics with images
+- Test history and comparison tools
 
-- Docker and Docker Compose
-- OpenAI API key
+### 🌐 Flexible Deployment Options
+- **Local Development**: SQLite database for quick setup
+- **Network Access**: Share on local WiFi network
+- **Internet Access**: ngrok integration for remote access
+- **Production**: Docker, Kubernetes, AWS, Railway support
 
-### Setup
+## 🚀 Quick Start
 
-1. Clone the repository and navigate to the project directory:
-   ```bash
-   cd DiagnoseAI
-   ```
+### Option 1: Local Development (Fastest)
 
-2. Copy the environment file and configure your settings:
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` and add your OpenAI API key:
-   ```
-   OPENAI_API_KEY=your-openai-api-key-here
-   ```
-
-3. Build and start the application:
-   ```bash
-   docker-compose up --build
-   ```
-
-## Production Deployment
-
-### Quick Deploy Script
 ```bash
-./deploy.sh
+# 1. Clone and navigate to the project
+cd DiagnoseAI
+
+# 2. Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Configure environment
+cp .env.example .env
+# Edit .env and add your OpenAI API key
+
+# 5. Run the application
+python run_local.py
 ```
 
-### Manual Production Setup
-1. **Configure Production Environment**
-   ```bash
-   cp .env.production .env
-   # Edit .env with your production settings
-   ```
+Access at: **http://127.0.0.1:5003**  
+Login: `admin` / `admin123`
 
-2. **Deploy with Docker Compose**
-   ```bash
-   docker-compose up -d
-   ```
+### Option 2: Network Access (Share with Others)
 
-3. **Deploy with HTTPS (nginx)**
-   ```bash
-   # Configure SSL certificates in ./ssl/
-   docker-compose --profile production up -d
-   ```
+```bash
+# Start server accessible on your local network
+python run_network.py
+```
 
-### Cloud Deployment
-- **AWS**: ECS/Fargate with RDS PostgreSQL
-- **Google Cloud**: Cloud Run with Cloud SQL
-- **Azure**: Container Instances with PostgreSQL
-- **DigitalOcean**: App Platform or Droplets
+Share the displayed network URL with others on the same WiFi.
 
-📖 **See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment guide**
+### Option 3: Internet Access (Remote Access)
 
-4. The application will be available at `http://localhost:5003`
+```bash
+# Install ngrok (one-time setup)
+brew install ngrok/ngrok/ngrok
+ngrok config add-authtoken YOUR_TOKEN
 
-### Database Setup
+# Start with internet access
+python run_internet.py
+```
 
-When running for the first time, you'll need to create the database tables:
+Share the generated public URL for worldwide access.
 
-1. Access the web container:
-   ```bash
-   docker-compose exec web bash
-   ```
+## 📋 Prerequisites
 
-2. Run the database migration:
-   ```bash
-   flask db migrate -m "Initial migration"
-   flask db upgrade
-   ```
+- **Python**: 3.9 or higher
+- **Database**: SQLite (local) or PostgreSQL (production)
+- **OpenAI API Key**: Required for AI features
+- **Optional**: Docker, ngrok (for specific deployment modes)
 
-## Development Setup
+## 🛠️ Technology Stack
 
-### Local Development
+| Category | Technology |
+|----------|-----------|
+| **Backend** | Flask 3.0.3, Python 3.9+ |
+| **Database** | PostgreSQL 15 / SQLite |
+| **Authentication** | Flask-Login, bcrypt |
+| **AI Integration** | OpenAI GPT-4o API |
+| **Image Processing** | Pillow 11.0.0 |
+| **PDF Generation** | ReportLab 4.2.5 |
+| **Frontend** | HTML5, CSS3, JavaScript |
+| **Deployment** | Docker, Kubernetes, Gunicorn |
 
-1. Create a Python virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Set up environment variables:
-   ```bash
-   export FLASK_APP=diagnoseai.py
-   export FLASK_ENV=development
-   export DATABASE_URL=postgresql://diagnoseai_user:diagnoseai_pass@localhost:5432/diagnoseai
-   export OPENAI_API_KEY=your-openai-api-key-here
-   ```
-
-4. Initialize the database (requires PostgreSQL running):
-   ```bash
-   flask db init
-   flask db migrate -m "Initial migration"
-   flask db upgrade
-   ```
-
-5. Run the application:
-   ```bash
-   # Option 1: Using the startup script (recommended)
-   python run_server.py
-   
-   # Option 2: Direct execution
-   python main.py
-   
-   # Option 3: Using Flask CLI (runs on default port 5000)
-   flask run
-   ```
-
-   The application will be available at `http://localhost:5003`
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 DiagnoseAI/
-├── app/
+├── app/                          # Main application package
 │   ├── __init__.py              # Flask app factory
-│   ├── models.py                # SQLAlchemy models
-│   ├── auth.py                  # Authentication routes (to be implemented)
-│   ├── main.py                  # Main application routes (to be implemented)
-│   ├── ai_service.py            # OpenAI integration (to be implemented)
-│   └── templates/               # HTML templates (to be implemented)
-├── static/
-│   └── uploads/                 # Uploaded images
-├── migrations/                  # Database migrations
-├── requirements.txt             # Python dependencies
-├── Dockerfile                   # Docker configuration
-├── docker-compose.yml           # Docker Compose configuration
-├── config.py                    # Application configuration
-└── diagnoseai.py               # Application entry point
+│   ├── models.py                # Database models (User, Patient, Case, Report)
+│   ├── auth.py                  # Authentication routes
+│   ├── main.py                  # Main application routes
+│   ├── forms.py                 # WTForms form definitions
+│   ├── ai_service.py            # OpenAI GPT-4o integration
+│   └── templates/               # Jinja2 HTML templates
+│       ├── base.html            # Base template
+│       ├── auth/                # Authentication templates
+│       └── main/                # Main app templates
+├── static/                       # Static assets
+│   └── uploads/                 # Uploaded ultrasound images
+├── tests/                        # Test suite
+│   ├── conftest.py              # Pytest configuration
+│   ├── test_auth.py             # Authentication tests
+│   ├── test_upload.py           # Upload functionality tests
+│   ├── test_ai_service.py       # AI service tests
+│   └── test_ai_integration.py   # Integration tests
+├── scripts/                      # Utility scripts
+│   ├── batch_ai_test.py         # Batch AI testing
+│   ├── check_network.py         # Network diagnostics
+│   ├── test_api_key.py          # API key validation
+│   ├── debug_env.py             # Environment debugging
+│   ├── migrate_db.py            # Database migration
+│   ├── create_admin_user.py     # Admin user creation
+│   └── clear_port.py            # Port management
+├── deployment/                   # Deployment configurations
+│   ├── docker/                  # Docker configs
+│   │   ├── Dockerfile
+│   │   └── docker-compose.yml
+│   ├── kubernetes/              # Kubernetes manifests
+│   │   ├── deployment.yaml
+│   │   ├── service.yaml
+│   │   └── ingress.yaml
+│   └── nginx/                   # Nginx configurations
+├── docs/                         # Documentation
+│   ├── LOCAL_SETUP.md           # Local development guide
+│   ├── NETWORK_SETUP.md         # Network access guide
+│   ├── INTERNET_ACCESS.md       # Internet access guide
+│   ├── DEPLOYMENT.md            # Production deployment
+│   ├── AI_TESTING_GUIDE.md      # AI testing documentation
+│   ├── POSTGRESQL_SETUP.md      # PostgreSQL setup
+│   └── aws-deploy.md            # AWS deployment guide
+├── database/                     # Database scripts
+│   ├── init-db.sql              # Database initialization
+│   └── create-tables.sql        # Table creation scripts
+├── migrations/                   # Alembic database migrations
+├── instance/                     # Instance-specific files (SQLite DB)
+├── .env.example                  # Environment template
+├── .env.production               # Production environment template
+├── requirements.txt              # Python dependencies
+├── config.py                     # Application configuration
+├── main.py                       # Application entry point
+├── run_local.py                  # Local development runner
+├── run_network.py                # Network access runner
+├── run_internet.py               # Internet access runner
+└── README.md                     # This file
 ```
 
-## Database Models
+## 🗄️ Database Models
 
 ### User
-- id (Primary Key)
-- username (Unique)
-- email (Unique)
-- password_hash
-- created_at
+- `id`: Primary key
+- `username`: Unique username
+- `email`: Unique email address
+- `password_hash`: Bcrypt hashed password
+- `created_at`: Account creation timestamp
+
+### Patient
+- `id`: Primary key
+- `name`: Patient full name
+- `date_of_birth`: Patient DOB
+- `medical_record_number`: Unique MRN
+- `contact_info`: Contact information
+- `created_at`: Record creation timestamp
 
 ### Case
-- id (Primary Key)
-- user_id (Foreign Key to User)
-- image_filename
-- image_path
-- clinical_notes
-- status
-- created_at, updated_at
+- `id`: Primary key
+- `patient_id`: Foreign key to Patient
+- `user_id`: Foreign key to User (creator)
+- `clinical_notes`: Clinical observations
+- `status`: Case status (pending/reviewed/finalized)
+- `image_paths`: JSON array of image paths (up to 4)
+- `created_at`, `updated_at`: Timestamps
 
 ### Report
-- id (Primary Key)
-- case_id (Foreign Key to Case)
-- draft_json (AI response)
-- draft_text (Formatted AI text)
-- final_text (User-edited final report)
-- is_finalized
-- created_at, updated_at
+- `id`: Primary key
+- `case_id`: Foreign key to Case
+- `draft_json`: Raw AI response JSON
+- `draft_text`: Formatted AI-generated text
+- `final_text`: User-edited final report
+- `is_finalized`: Finalization status
+- `created_at`, `updated_at`: Timestamps
 
-## Environment Variables
+### AITestResult
+- `id`: Primary key
+- `user_id`: Foreign key to User
+- `image_filename`: Test image filename
+- `image_path`: Path to test image
+- `view_type`: Ultrasound view type
+- `ai_response_json`: Raw AI analysis
+- `ai_response_text`: Formatted analysis
+- `rating`: User rating (1-5 stars)
+- `comments`: User feedback
+- `created_at`: Test timestamp
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SECRET_KEY` | Flask secret key for sessions | `dev-secret-key-change-in-production` |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://diagnoseai_user:diagnoseai_pass@localhost:5432/diagnoseai` |
-| `OPENAI_API_KEY` | OpenAI API key for GPT-4o | Required |
-| `UPLOAD_FOLDER` | Directory for uploaded files | `static/uploads` |
-| `MAX_CONTENT_LENGTH` | Maximum file upload size | `16777216` (16MB) |
+## ⚙️ Configuration
 
-## Security Considerations
+### Environment Variables
 
-- Passwords are hashed using bcrypt
-- File uploads are validated and stored securely
-- OpenAI API key is stored as environment variable
-- Session cookies are configured with security flags
-- Input validation and sanitization on all forms
+Create a `.env` file based on `.env.example`:
 
-## License
+```bash
+# Flask Configuration
+SECRET_KEY=your-secret-key-change-in-production
+FLASK_APP=main.py
+FLASK_ENV=development
+
+# Database Configuration
+# SQLite (Local Development)
+DATABASE_URL=sqlite:////path/to/DiagnoseAI/instance/diagnoseai.db
+
+# PostgreSQL (Production)
+# DATABASE_URL=postgresql://user:password@host:5432/diagnoseai
+
+# OpenAI API Configuration
+OPENAI_API_KEY=sk-your-openai-api-key-here
+
+# File Upload Configuration
+UPLOAD_FOLDER=static/uploads
+MAX_CONTENT_LENGTH=16777216  # 16MB
+```
+
+### Database Setup
+
+#### SQLite (Local Development)
+```bash
+# Automatic setup on first run
+python run_local.py
+```
+
+#### PostgreSQL (Production)
+```bash
+# 1. Create database
+createdb diagnoseai
+
+# 2. Run migrations
+flask db upgrade
+
+# 3. Create admin user
+python scripts/create_admin_user.py
+```
+
+## 🧪 Testing
+
+### Run All Tests
+```bash
+pytest
+```
+
+### Run Specific Test Suites
+```bash
+# Authentication tests
+pytest tests/test_auth.py
+
+# Upload functionality
+pytest tests/test_upload.py
+
+# AI service tests
+pytest tests/test_ai_service.py
+
+# Integration tests
+pytest tests/test_ai_integration.py
+```
+
+### AI Performance Testing
+```bash
+# Interactive AI testing
+python scripts/batch_ai_test.py
+
+# Or use the web interface: AI Testing → Test Results
+```
+
+## 📚 Documentation
+
+Comprehensive guides are available in the `docs/` directory:
+
+- **[LOCAL_SETUP.md](docs/LOCAL_SETUP.md)** - Complete local development setup
+- **[NETWORK_SETUP.md](docs/NETWORK_SETUP.md)** - Share on local network
+- **[INTERNET_ACCESS.md](docs/INTERNET_ACCESS.md)** - Remote access with ngrok
+- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment guide
+- **[AI_TESTING_GUIDE.md](docs/AI_TESTING_GUIDE.md)** - AI testing and evaluation
+- **[POSTGRESQL_SETUP.md](docs/POSTGRESQL_SETUP.md)** - PostgreSQL configuration
+- **[aws-deploy.md](docs/aws-deploy.md)** - AWS deployment instructions
+
+## 🚢 Deployment Options
+
+### Docker
+```bash
+cd deployment/docker
+docker-compose up -d
+```
+
+### Kubernetes
+```bash
+kubectl apply -f deployment/kubernetes/
+```
+
+### Railway
+```bash
+# One-click deploy using railway.json
+railway up
+```
+
+### AWS
+```bash
+# See docs/aws-deploy.md for detailed instructions
+./deployment/aws-deploy.sh
+```
+
+## 🔒 Security Features
+
+- ✅ Bcrypt password hashing
+- ✅ CSRF protection on all forms
+- ✅ Secure session management
+- ✅ File upload validation
+- ✅ SQL injection prevention (SQLAlchemy ORM)
+- ✅ XSS protection (Jinja2 auto-escaping)
+- ✅ Environment-based secrets management
+- ✅ HTTPS support in production
+
+## 🤝 Contributing
+
+This is an educational project. Contributions, issues, and feature requests are welcome!
+
+## 📄 License
 
 This project is for educational and demonstration purposes.
+
+## 🙏 Acknowledgments
+
+- OpenAI for GPT-4o API
+- Flask community for excellent documentation
+- Healthcare professionals for domain expertise
+
+## 📞 Support
+
+For issues, questions, or suggestions:
+- Check the documentation in `docs/`
+- Review existing issues on GitHub
+- Create a new issue with detailed information
+
+---
+
+**Built with ❤️ for healthcare professionals**

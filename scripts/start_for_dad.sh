@@ -25,7 +25,7 @@ if [ ! -f "instance/diagnoseai.db" ]; then
     echo "Setting up database..."
     export FLASK_APP=main.py
     flask db upgrade
-    python create_admin_user.py
+    python scripts/create_admin_user.py
 fi
 
 # Get local IP for sharing

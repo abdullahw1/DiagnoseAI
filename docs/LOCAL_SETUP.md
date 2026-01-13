@@ -72,13 +72,13 @@ AI-powered draft report generation requires a valid OpenAI API key.
 rm instance/diagnoseai.db
 source venv/bin/activate
 flask db upgrade
-python create_admin_user.py
+python scripts/create_admin_user.py
 ```
 
 ### Create Additional Users
 ```bash
 source venv/bin/activate
-python create_admin_user.py
+python scripts/create_admin_user.py
 ```
 
 ## Troubleshooting
