@@ -11,7 +11,11 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import re
 from sqlalchemy import func
-from app.models import Case, Report, Patient, CaseImage, AITestResult, StructuredFindings, AIGeneratedFindings, FindingsEvaluation
+from app.models import (
+    Case, Report, Patient, CaseImage, AITestResult, 
+    StructuredFindings, AIGeneratedFindings, FindingsEvaluation,
+    AgentOutput, Feedback, RAGCase
+)
 from app.forms import UploadForm, ReportEditForm, PatientForm, CaseForm, StructuredFindingsForm
 from app.ai_service import generate_draft_report, AIServiceError
 from app import db
@@ -46,9 +50,25 @@ def run_multi_agent_pipeline(case_id: int) -> dict:
             - execution_log: List of agent execution details
     """
     try:
-        current_app.logger.info(f"Initializing multi-agent pipeline for case {case_id}")
+        current_app.logger.info(f"=== Starting multi-agent pipeline for case {case_id} ===")
+        
+        # Check if OpenAI API key is configured
+        import os
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            error_msg = "OPENAI_API_KEY not configured"
+            current_app.logger.error(error_msg)
+            return {
+                'success': False,
+                'report_id': None,
+                'errors': [error_msg],
+                'execution_log': []
+            }
+        
+        current_app.logger.info(f"OpenAI API key found: {api_key[:10]}...")
         
         # Initialize all agents
+        current_app.logger.info("Initializing agents...")
         agents = {
             'agent_a': ClinicalContextAgent(),
             'agent_b': QualityAssessmentAgent(),
@@ -57,19 +77,24 @@ def run_multi_agent_pipeline(case_id: int) -> dict:
             'agent_e': ReportDraftingAgent(),
             'agent_f': SafetyValidationAgent()
         }
+        current_app.logger.info(f"Initialized {len(agents)} agents")
         
         # Create orchestrator and register agents
+        current_app.logger.info("Creating orchestrator...")
         orchestrator = AgentOrchestrator(agents=agents)
         
         # Build the agent pipeline graph
+        current_app.logger.info("Building pipeline graph...")
         orchestrator.build_graph()
         
         # Execute the pipeline
+        current_app.logger.info("Executing pipeline...")
         result = orchestrator.orchestrate_analysis(case_id)
         
         current_app.logger.info(
-            f"Multi-agent pipeline completed for case {case_id}. "
-            f"Success: {result['success']}, Report ID: {result.get('report_id')}"
+            f"=== Multi-agent pipeline completed for case {case_id} === "
+            f"Success: {result['success']}, Report ID: {result.get('report_id')}, "
+            f"Errors: {result.get('errors', [])}"
         )
         
         return result
@@ -1102,7 +1127,17 @@ def delete_case(case_id):
         case_number = case.formatted_case_number
         patient_name = case.patient.full_name
         
-        # Delete associated image file if it exists
+        # Delete associated image files
+        # Delete case images
+        for case_image in case.images:
+            if case_image.image_path and os.path.exists(case_image.image_path):
+                try:
+                    os.remove(case_image.image_path)
+                    current_app.logger.info(f'Deleted image file: {case_image.image_path}')
+                except OSError as e:
+                    current_app.logger.warning(f'Could not delete image file {case_image.image_path}: {str(e)}')
+        
+        # Delete legacy single image if it exists
         if case.image_path and os.path.exists(case.image_path):
             try:
                 os.remove(case.image_path)
@@ -1110,7 +1145,35 @@ def delete_case(case_id):
             except OSError as e:
                 current_app.logger.warning(f'Could not delete image file {case.image_path}: {str(e)}')
         
-        # Delete the case (reports will be deleted automatically due to cascade)
+        # Explicitly delete related records (for SQLite compatibility)
+        # Delete structured findings
+        if case.structured_findings:
+            db.session.delete(case.structured_findings)
+        
+        # Delete AI generated findings
+        for ai_finding in case.ai_findings:
+            # Delete evaluations for this AI finding
+            FindingsEvaluation.query.filter_by(ai_finding_id=ai_finding.id).delete()
+            db.session.delete(ai_finding)
+        
+        # Delete agent outputs
+        AgentOutput.query.filter_by(case_id=case_id).delete()
+        
+        # Delete feedback
+        Feedback.query.filter_by(case_id=case_id).delete()
+        
+        # Delete RAG cases
+        RAGCase.query.filter_by(case_id=case_id).delete()
+        
+        # Delete case images
+        CaseImage.query.filter_by(case_id=case_id).delete()
+        
+        # Delete reports (and their associated feedback)
+        for report in case.reports:
+            Feedback.query.filter_by(report_id=report.id).delete()
+            db.session.delete(report)
+        
+        # Finally, delete the case
         db.session.delete(case)
         db.session.commit()
         

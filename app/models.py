@@ -145,7 +145,7 @@ class CaseImage(db.Model):
     __tablename__ = 'case_images'
     
     id = db.Column(db.Integer, primary_key=True)
-    case_id = db.Column(db.Integer, db.ForeignKey('cases.id'), nullable=False)
+    case_id = db.Column(db.Integer, db.ForeignKey('cases.id', ondelete='CASCADE'), nullable=False)
     filename = db.Column(db.String(255), nullable=False)
     original_filename = db.Column(db.String(255), nullable=False)
     image_path = db.Column(db.String(500), nullable=False)
@@ -162,7 +162,7 @@ class Report(db.Model):
     __tablename__ = 'reports'
     
     id = db.Column(db.Integer, primary_key=True)
-    case_id = db.Column(db.Integer, db.ForeignKey('cases.id'), nullable=False)
+    case_id = db.Column(db.Integer, db.ForeignKey('cases.id', ondelete='CASCADE'), nullable=False)
     draft_json = db.Column(db.JSON)
     draft_text = db.Column(db.Text)
     final_text = db.Column(db.Text)
@@ -232,7 +232,7 @@ class AgentOutput(db.Model):
     __tablename__ = 'agent_outputs'
     
     id = db.Column(db.Integer, primary_key=True)
-    case_id = db.Column(db.Integer, db.ForeignKey('cases.id'), nullable=False)
+    case_id = db.Column(db.Integer, db.ForeignKey('cases.id', ondelete='CASCADE'), nullable=False)
     agent_name = db.Column(db.String(50), nullable=False)  # agent_a_context, agent_b_quality, etc.
     input_data = db.Column(db.JSON)  # Input passed to the agent
     output_data = db.Column(db.JSON)  # Output produced by the agent
@@ -249,8 +249,8 @@ class Feedback(db.Model):
     __tablename__ = 'feedback'
     
     id = db.Column(db.Integer, primary_key=True)
-    case_id = db.Column(db.Integer, db.ForeignKey('cases.id'), nullable=False)
-    report_id = db.Column(db.Integer, db.ForeignKey('reports.id'), nullable=False)
+    case_id = db.Column(db.Integer, db.ForeignKey('cases.id', ondelete='CASCADE'), nullable=False)
+    report_id = db.Column(db.Integer, db.ForeignKey('reports.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     action = db.Column(db.String(20), nullable=False)  # 'approve', 'modify', 'reject'
     modifications = db.Column(db.JSON)  # Diff of changes made
@@ -301,8 +301,8 @@ class RAGCase(db.Model):
     __tablename__ = 'rag_cases'
     
     id = db.Column(db.Integer, primary_key=True)
-    case_id = db.Column(db.Integer, db.ForeignKey('cases.id'), nullable=False)
-    report_id = db.Column(db.Integer, db.ForeignKey('reports.id'), nullable=False)
+    case_id = db.Column(db.Integer, db.ForeignKey('cases.id', ondelete='CASCADE'), nullable=False)
+    report_id = db.Column(db.Integer, db.ForeignKey('reports.id', ondelete='CASCADE'), nullable=False)
     embedding = db.Column(db.LargeBinary)  # Vector embedding for similarity search
     pathology_tags = db.Column(db.JSON)  # Array of pathology tags for filtering
     quality_score = db.Column(db.Float)  # Quality score for this case
@@ -321,7 +321,7 @@ class StructuredFindings(db.Model):
     __tablename__ = 'structured_findings'
     
     id = db.Column(db.Integer, primary_key=True)
-    case_id = db.Column(db.Integer, db.ForeignKey('cases.id'), nullable=False, unique=True)
+    case_id = db.Column(db.Integer, db.ForeignKey('cases.id', ondelete='CASCADE'), nullable=False, unique=True)
     
     # Liver findings
     liver_size = db.Column(db.String(20))  # Normal, Enlarged, Shrunken
@@ -383,8 +383,8 @@ class AIGeneratedFindings(db.Model):
     __tablename__ = 'ai_generated_findings'
     
     id = db.Column(db.Integer, primary_key=True)
-    case_id = db.Column(db.Integer, db.ForeignKey('cases.id'), nullable=False)
-    ai_test_result_id = db.Column(db.Integer, db.ForeignKey('ai_test_results.id'), nullable=True)
+    case_id = db.Column(db.Integer, db.ForeignKey('cases.id', ondelete='CASCADE'), nullable=False)
+    ai_test_result_id = db.Column(db.Integer, db.ForeignKey('ai_test_results.id', ondelete='CASCADE'), nullable=True)
     
     # Same structure as StructuredFindings
     liver_size = db.Column(db.String(20))
@@ -438,7 +438,7 @@ class FindingsEvaluation(db.Model):
     __tablename__ = 'findings_evaluations'
     
     id = db.Column(db.Integer, primary_key=True)
-    ai_finding_id = db.Column(db.Integer, db.ForeignKey('ai_generated_findings.id'), nullable=False)
+    ai_finding_id = db.Column(db.Integer, db.ForeignKey('ai_generated_findings.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
     # Field-by-field correctness (JSON structure)

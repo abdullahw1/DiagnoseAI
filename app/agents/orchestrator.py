@@ -437,6 +437,13 @@ class AgentOrchestrator:
             draft_report = final_state.get('draft_report', {})
             safety_validation = final_state.get('safety_validation', {})
             
+            # Always format report from sections if available for proper structure
+            if 'report_sections' in draft_report and draft_report['report_sections']:
+                report_text = self._format_report_text(draft_report)
+            else:
+                # Fallback to full_report_text or report_text if sections not available
+                report_text = draft_report.get('full_report_text', '') or draft_report.get('report_text', '')
+            
             # Create report record
             report = Report(
                 case_id=case_id,
@@ -448,7 +455,7 @@ class AgentOrchestrator:
                     'draft_report': draft_report,
                     'safety_validation': safety_validation
                 },
-                draft_text=draft_report.get('report_text', ''),
+                draft_text=report_text,
                 confidence_score=safety_validation.get('confidence_score'),
                 safety_flags=safety_validation.get('safety_flags'),
                 is_finalized=False
@@ -464,6 +471,45 @@ class AgentOrchestrator:
             self.logger.error(f"Failed to store report: {str(e)}", exc_info=True)
             db.session.rollback()
             return None
+    
+    def _format_report_text(self, draft_report: Dict[str, Any]) -> str:
+        """
+        Format report text from structured sections with proper spacing.
+        
+        Args:
+            draft_report: Draft report dictionary from Agent E
+        
+        Returns:
+            Properly formatted report text with sections separated by line breaks
+        """
+        sections = draft_report.get('report_sections', {})
+        
+        formatted_parts = []
+        
+        # Clinical History
+        if sections.get('clinical_history'):
+            formatted_parts.append("CLINICAL HISTORY")
+            formatted_parts.append(sections['clinical_history'])
+            formatted_parts.append("")  # Empty line
+        
+        # Technique
+        if sections.get('technique'):
+            formatted_parts.append("TECHNIQUE")
+            formatted_parts.append(sections['technique'])
+            formatted_parts.append("")  # Empty line
+        
+        # Findings
+        if sections.get('findings'):
+            formatted_parts.append("FINDINGS")
+            formatted_parts.append(sections['findings'])
+            formatted_parts.append("")  # Empty line
+        
+        # Impression
+        if sections.get('impression'):
+            formatted_parts.append("IMPRESSION")
+            formatted_parts.append(sections['impression'])
+        
+        return "\n".join(formatted_parts)
     
     def _serialize_structured_findings(self, findings: StructuredFindings) -> Dict[str, Any]:
         """

@@ -395,7 +395,9 @@ python scripts/create_admin_user.py
 
 ### Multi-Agent AI Pipeline
 
-DiagnoseAI uses a sophisticated multi-agent architecture powered by LangGraph for sequential processing:
+DiagnoseAI uses a sophisticated multi-agent architecture powered by LangGraph for sequential processing. Each agent is a specialized component that performs a specific task, with outputs flowing through a state graph managed by the orchestrator.
+
+#### Agent Pipeline Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -412,32 +414,39 @@ DiagnoseAI uses a sophisticated multi-agent architecture powered by LangGraph fo
 │  • Extracts relevant history, indication, labs                   │
 │  • Includes user-provided structured findings as context         │
 │  • Identifies clinical questions to address                      │
+│  • Output: Structured clinical context dictionary                │
 ├─────────────────────────────────────────────────────────────────┤
 │  Agent B: View Identification & Quality Assessment               │
 │  • Identifies ultrasound views (liver, kidney, etc.)             │
 │  • Assesses image quality and adequacy                           │
 │  • Flags technical limitations                                   │
+│  • Output: Quality scores, view identification, limitations      │
 ├─────────────────────────────────────────────────────────────────┤
 │  Agent C: Image Findings Extraction (Enhanced)                   │
 │  • Analyzes images for pathological findings                     │
 │  • Extracts structured findings by organ system                  │
 │  • Generates confidence scores per finding                       │
 │  • Stores AIGeneratedFindings for evaluation                     │
+│  • Output: Structured findings with confidence scores            │
 ├─────────────────────────────────────────────────────────────────┤
 │  Agent D: Diagnostic Reasoning                                   │
 │  • Synthesizes findings into differential diagnoses              │
 │  • Correlates imaging with clinical context                      │
 │  • Provides diagnostic confidence levels                         │
+│  • Output: Primary diagnosis, differentials, recommendations     │
 ├─────────────────────────────────────────────────────────────────┤
 │  Agent E: Structured Report Drafting                             │
 │  • Generates comprehensive radiology report                      │
-│  • Follows standard reporting format                             │
+│  • Follows standard reporting format (CLINICAL HISTORY,          │
+│    TECHNIQUE, FINDINGS, IMPRESSION)                              │
 │  • Includes recommendations and follow-up                        │
+│  • Output: Formatted report with structured sections             │
 ├─────────────────────────────────────────────────────────────────┤
 │  Agent F: Safety & Consistency Validation                        │
 │  • Validates report completeness and accuracy                    │
 │  • Checks for critical findings                                  │
 │  • Ensures clinical safety and consistency                       │
+│  • Output: Safety flags, confidence score, validation status     │
 └────────────────────────┬────────────────────────────────────────┘
                          │
                          ▼
@@ -455,6 +464,38 @@ DiagnoseAI uses a sophisticated multi-agent architecture powered by LangGraph fo
 │  • PDF/Text export  • Audit trail  • Performance metrics         │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+#### State Management
+
+The orchestrator maintains an `AgentState` object that flows through the pipeline:
+
+```python
+AgentState = {
+    'case_id': int,
+    'case_data': dict,                    # Input data
+    'clinical_context': dict,             # From Agent A
+    'quality_assessment': dict,           # From Agent B
+    'findings': dict,                     # From Agent C
+    'diagnostic_reasoning': dict,         # From Agent D
+    'draft_report': dict,                 # From Agent E
+    'safety_validation': dict,            # From Agent F
+    'errors': list,                       # Error accumulation
+    'execution_log': list                 # Audit trail
+}
+```
+
+Each agent receives the complete state and can access outputs from all previous agents, enabling sophisticated cross-agent reasoning and validation.
+
+#### Audit Trail
+
+Every agent execution is logged to the `agent_outputs` table with:
+- Input data passed to the agent
+- Output data produced by the agent
+- Execution time in milliseconds
+- Error messages (if any)
+- Timestamp
+
+This provides complete traceability and enables debugging, performance analysis, and continuous improvement.
 
 ### Structured Findings Workflow
 
@@ -490,6 +531,145 @@ StructuredFindings  Context    AIGeneratedFindings
           │ • Temporal trends│
           └─────────────────┘
 ```
+
+### Continuous Improvement Loop
+
+DiagnoseAI implements a sophisticated feedback capture system that enables continuous improvement **without requiring model retraining**. The system learns from radiologist feedback to refine prompts, improve accuracy, and build a rich dataset for future enhancements.
+
+#### Feedback Capture Mechanisms
+
+**1. Report-Level Feedback**
+
+The `feedback/capture.py` module captures three types of radiologist actions:
+
+- **Approval** (`capture_approval`)
+  - Radiologist approves AI report without changes
+  - Captures: Confidence level (1-5), notes, report metadata
+  - **Signal**: High confidence approvals indicate good AI performance on similar cases
+
+- **Modification** (`capture_modification`)
+  - Radiologist edits the AI report
+  - Captures: Complete diff between original and modified text
+  - Tracks: Additions, deletions, change percentage, specific line changes
+  - **Signal**: Modification patterns reveal systematic AI weaknesses
+
+- **Rejection** (`capture_rejection`)
+  - Radiologist rejects the AI report entirely
+  - Captures: Rejection category, detailed explanation, correct interpretation
+  - **Signal**: Rejections indicate serious AI errors requiring immediate attention
+
+**2. Structured Findings Evaluation**
+
+The `FindingsEvaluation` model enables granular accuracy tracking:
+
+- **Field-by-field comparison** between AI and radiologist findings
+- **Per-organ accuracy metrics** (liver, spleen, kidneys, etc.)
+- **Confidence score tracking** for each finding
+- **Temporal trend analysis** showing improvement over time
+
+#### Continuous Improvement Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Case Processing                               │
+│  Upload → Multi-Agent Pipeline → AI Report Generated             │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Radiologist Review (HITL)                           │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ Action: Approve                                          │    │
+│  │ • Rate confidence (1-5 stars)                            │    │
+│  │ • Add optional notes                                     │    │
+│  │ → Stored in Feedback table                               │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ Action: Modify                                           │    │
+│  │ • Edit report text                                       │    │
+│  │ • System calculates diff automatically                   │    │
+│  │ • Captures: additions, deletions, change %               │    │
+│  │ → Stored in Feedback table with diff data                │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ Action: Reject                                           │    │
+│  │ • Select rejection category                              │    │
+│  │ • Provide detailed explanation                           │    │
+│  │ • Optionally provide correct interpretation              │    │
+│  │ → Stored in Feedback table with rejection details        │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ Structured Findings Evaluation                           │    │
+│  │ • Compare AI vs radiologist findings field-by-field      │    │
+│  │ • Mark each field as correct/incorrect                   │    │
+│  │ • Calculate accuracy percentage                          │    │
+│  │ → Stored in FindingsEvaluation table                     │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Structured Data Storage                             │
+│  • Feedback table: Actions, modifications, rejections            │
+│  • FindingsEvaluation: Field-level accuracy                      │
+│  • AgentOutput: Complete audit trail of agent executions         │
+│  • All data timestamped and linked to cases/users                │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Analysis & Improvement (Continuous)                 │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ Without Retraining (Immediate)                           │    │
+│  │ • Prompt Engineering: Refine agent prompts based on      │    │
+│  │   common modification patterns                           │    │
+│  │ • RAG Enhancement: Use approved reports as examples      │    │
+│  │ • Rule-Based Corrections: Fix systematic errors          │    │
+│  │ • Confidence Thresholds: Adjust review triggers          │    │
+│  │ • Agent Instruction Updates: Improve agent guidelines    │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │ With Retraining (Future)                                 │    │
+│  │ • Fine-tune models on radiologist-corrected reports      │    │
+│  │ • Train specialized models per anatomical structure      │    │
+│  │ • Use rejection data to improve error detection          │    │
+│  │ • Leverage evaluation data for supervised learning       │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Metrics Dashboard & Monitoring                      │
+│  • Overall accuracy percentage (trending over time)              │
+│  • Per-organ accuracy breakdown                                  │
+│  • Per-field accuracy (liver size, texture, etc.)                │
+│  • Confidence score distributions                                │
+│  • Common error patterns and categories                          │
+│  • Approval/modification/rejection rates                         │
+│  • Agent execution time trends                                   │
+│  • Safety flag frequency analysis                                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Key Advantages
+
+1. **No Retraining Required**: System improves through prompt refinement and rule updates
+2. **Rich Dataset Collection**: Builds valuable training data for future model improvements
+3. **Granular Feedback**: Field-level accuracy tracking enables targeted improvements
+4. **Complete Audit Trail**: Every agent decision is logged for analysis
+5. **Real-time Metrics**: Dashboard shows performance trends and identifies weaknesses
+6. **Scalable Learning**: As more cases are reviewed, patterns emerge for systematic fixes
+
+#### Improvement Metrics Tracked
+
+- **Accuracy Metrics**: Overall, per-organ, per-field accuracy percentages
+- **Confidence Calibration**: How well AI confidence scores match actual accuracy
+- **Error Patterns**: Common types of mistakes (e.g., size estimation, texture assessment)
+- **Temporal Trends**: Improvement over time as prompts are refined
+- **User Satisfaction**: Approval rates and confidence ratings from radiologists
+- **Efficiency Gains**: Time saved vs manual reporting, edit frequency reduction
+
+This continuous improvement loop ensures the system gets smarter with every case reviewed, without expensive retraining cycles.
 
 ## 🧪 Testing
 
