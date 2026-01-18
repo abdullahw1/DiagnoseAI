@@ -193,3 +193,155 @@ class ReportEditForm(FlaskForm):
     
     save_draft = SubmitField('Save Draft', render_kw={'class': 'btn btn-secondary me-2'})
     finalize_report = SubmitField('Finalize Report', render_kw={'class': 'btn btn-success'})
+
+
+class StructuredFindingsForm(FlaskForm):
+    """Form for capturing structured ultrasound findings."""
+    
+    # Liver
+    liver_size = SelectField('Liver Size', choices=[
+        ('', 'Not assessed'),
+        ('Normal', 'Normal'),
+        ('Enlarged', 'Enlarged'),
+        ('Shrunken', 'Shrunken')
+    ], validators=[Optional()])
+    
+    liver_texture = SelectField('Liver Texture', choices=[
+        ('', 'Not assessed'),
+        ('Normal', 'Normal'),
+        ('Fatty', 'Fatty'),
+        ('Coarse', 'Coarse')
+    ], validators=[Optional()])
+    
+    liver_focal_defect = SelectField('Liver Focal Defect', choices=[
+        ('', 'Not assessed'),
+        ('Absent', 'Absent'),
+        ('Present', 'Present')
+    ], validators=[Optional()])
+    
+    liver_cbd = SelectField('CBD', choices=[
+        ('', 'Not assessed'),
+        ('Normal', 'Normal'),
+        ('Dilated', 'Dilated')
+    ], validators=[Optional()])
+    
+    liver_pv = SelectField('Portal Vein', choices=[
+        ('', 'Not assessed'),
+        ('Normal', 'Normal'),
+        ('Dilated', 'Dilated')
+    ], validators=[Optional()])
+    
+    # Spleen
+    spleen_size = SelectField('Spleen Size', choices=[
+        ('', 'Not assessed'),
+        ('Normal', 'Normal'),
+        ('Enlarged', 'Enlarged')
+    ], validators=[Optional()])
+    
+    spleen_focal_defect = SelectField('Spleen Focal Defect', choices=[
+        ('', 'Not assessed'),
+        ('Absent', 'Absent'),
+        ('Present', 'Present')
+    ], validators=[Optional()])
+    
+    # Gall Bladder
+    gb_calculus = SelectField('GB Calculus', choices=[
+        ('', 'Not assessed'),
+        ('Absent', 'Absent'),
+        ('Present', 'Present')
+    ], validators=[Optional()])
+    
+    gb_wall_edema = SelectField('GB Wall Edema', choices=[
+        ('', 'Not assessed'),
+        ('Absent', 'Absent'),
+        ('Present', 'Present')
+    ], validators=[Optional()])
+    
+    # Right Kidney
+    right_kidney_size = SelectField('Right Kidney Size', choices=[
+        ('', 'Not assessed'),
+        ('Normal', 'Normal'),
+        ('Shrunken', 'Shrunken')
+    ], validators=[Optional()])
+    
+    right_kidney_texture = SelectField('Right Kidney Texture', choices=[
+        ('', 'Not assessed'),
+        ('Normal', 'Normal'),
+        ('Echogenic', 'Echogenic')
+    ], validators=[Optional()])
+    
+    right_kidney_other = StringField('Right Kidney Other Findings', 
+        validators=[Optional(), Length(max=200)])
+    
+    # Left Kidney
+    left_kidney_size = SelectField('Left Kidney Size', choices=[
+        ('', 'Not assessed'),
+        ('Normal', 'Normal'),
+        ('Shrunken', 'Shrunken')
+    ], validators=[Optional()])
+    
+    left_kidney_texture = SelectField('Left Kidney Texture', choices=[
+        ('', 'Not assessed'),
+        ('Normal', 'Normal'),
+        ('Echogenic', 'Echogenic')
+    ], validators=[Optional()])
+    
+    left_kidney_other = StringField('Left Kidney Other Findings', 
+        validators=[Optional(), Length(max=200)])
+    
+    # Pancreas
+    pancreas_findings = TextAreaField('Pancreas Findings', 
+        validators=[Optional(), Length(max=500)],
+        render_kw={'rows': 2})
+    
+    # Urinary Bladder
+    bladder_filling = SelectField('Bladder Filling', choices=[
+        ('', 'Not assessed'),
+        ('Full', 'Full'),
+        ('Partially filled', 'Partially filled'),
+        ('Empty', 'Empty')
+    ], validators=[Optional()])
+    
+    bladder_stone_mass = SelectField('Bladder Stone/Mass', choices=[
+        ('', 'Not assessed'),
+        ('Absent', 'Absent'),
+        ('Present', 'Present')
+    ], validators=[Optional()])
+    
+    bladder_mucosal_irregularity = SelectField('Bladder Mucosal Irregularity', choices=[
+        ('', 'Not assessed'),
+        ('Absent', 'Absent'),
+        ('Present', 'Present')
+    ], validators=[Optional()])
+    
+    # Prostate
+    prostate_findings = TextAreaField('Prostate Findings', 
+        validators=[Optional(), Length(max=500)],
+        render_kw={'rows': 2})
+    
+    # Additional Findings
+    ascites = SelectField('Ascites', choices=[
+        ('', 'Not assessed'),
+        ('Absent', 'Absent'),
+        ('Present', 'Present')
+    ], validators=[Optional()])
+    
+    pleural_effusions = SelectField('Pleural Effusions', choices=[
+        ('', 'Not assessed'),
+        ('Absent', 'Absent'),
+        ('Present', 'Present')
+    ], validators=[Optional()])
+    
+    para_aortic_lymph_nodes = SelectField('Para Aortic Lymph Nodes', choices=[
+        ('', 'Not assessed'),
+        ('Absent', 'Absent'),
+        ('Present', 'Present')
+    ], validators=[Optional()])
+    
+    other_findings = StringField('Other Findings', 
+        validators=[Optional(), Length(max=200)])
+    
+    # Comments
+    comments = TextAreaField('Additional Comments', 
+        validators=[Optional(), Length(max=1000)],
+        render_kw={'rows': 3})

@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>
+                        <i class="fas fa-brain me-2"></i>AI Test Results - Structured Findings
+                    </h2>
+                    <p class="text-muted mb-0">
+                        Test ID: <strong>#{{ test_result.id }}</strong> | 
+                        Analyzed: {{ test_result.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </p>
+                </div>
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('main.ai_test_results') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Results
+                    </a>
+                    {% if findings %}
+                    <a href="{{ url_for('main.evaluate_findings', result_id=test_result.id) }}" class="btn btn-primary">
+                        <i class="fas fa-clipboard-check me-1"></i>Evaluate Findings
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        {# Image Display #}
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-image me-2"></i>Test Image</h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <img src="{{ url_for('main.view_ai_test_image', test_id=test_result.id) }}" 
+                             alt="AI Test Image" 
+                             class="img-fluid rounded shadow-sm test-image"
+                             style="max-height: 500px; max-width: 100%; cursor: pointer;"
+                             onclick="openImageModal()"
+                             onerror="this.style.display='none'; document.getElementById('image-error').style.display='block';">
+                        
+                        <!-- Fallback if image fails to load -->
+                        <div id="image-error" style="display: none;">
+                            <i class="fas fa-file-image fa-4x text-muted mb-3"></i>
+                            <p class="text-muted">Image could not be loaded</p>
+                        </div>
+                    </div>
+                    
+                    {% if test_result.view_type %}
+                    <div class="mb-2">
+                        <span class="badge bg-info">{{ test_result.view_type }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if test_result.image_context %}
+                    <div class="alert alert-light mb-0">
+                        <small><strong>Context:</strong> {{ test_result.image_context }}</small>
+                    </div>
+                    {% endif %}
+                    
+                    <small class="text-muted d-block mt-2">Click image to view full size</small>
+                </div>
+            </div>
+
+            {# AI Analysis Summary #}
+            {% if test_result.analysis_result %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-file-medical-alt me-2"></i>AI Analysis Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="analysis-summary">
+                        {{ test_result.analysis_result|nl2br if test_result.analysis_result else 'No analysis summary available.' }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {# Structured Findings Display #}
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-stethoscope me-2"></i>AI-Generated Structured Findings
+                    </h5>
+                    {% if findings %}
+                    <span class="badge bg-success">
+                        <i class="fas fa-check-circle me-1"></i>Analysis Complete
+                    </span>
+                    {% else %}
+                    <span class="badge bg-warning">
+                        <i class="fas fa-exclamation-triangle me-1"></i>No Findings
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if findings %}
+                        {% set findings_type = 'ai' %}
+                        {% include 'main/_findings_display.html' %}
+                        
+                        {# Action Buttons #}
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <a href="{{ url_for('main.evaluate_findings', result_id=test_result.id) }}" 
+                                       class="btn btn-primary">
+                                        <i class="fas fa-clipboard-check me-1"></i>Evaluate Findings
+                                    </a>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="printFindings()">
+                                        <i class="fas fa-print me-1"></i>Print
+                                    </button>
+                                </div>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Review and evaluate the accuracy of AI-generated findings
+                                </small>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>No Structured Findings Available</strong><br>
+                            The AI analysis did not generate structured findings for this test image.
+                            This may occur if:
+                            <ul class="mb-0 mt-2">
+                                <li>The image quality was insufficient for analysis</li>
+                                <li>The image type is not supported for structured findings extraction</li>
+                                <li>An error occurred during the analysis process</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <a href="{{ url_for('main.ai_test') }}" class="btn btn-primary">
+                                <i class="fas fa-upload me-1"></i>Test Another Image
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# Evaluation History (if any evaluations exist) #}
+            {% if findings and findings.evaluations %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-history me-2"></i>Evaluation History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Evaluator</th>
+                                    <th>Accuracy</th>
+                                    <th>Correct/Total</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for evaluation in findings.evaluations %}
+                                <tr>
+                                    <td>{{ evaluation.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>{{ evaluation.user.username }}</td>
+                                    <td>
+                                        <span class="badge {% if evaluation.accuracy_percentage >= 80 %}bg-success{% elif evaluation.accuracy_percentage >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ evaluation.accuracy_percentage|round(1) }}%
+                                        </span>
+                                    </td>
+                                    <td>{{ evaluation.correct_fields }}/{{ evaluation.total_fields }}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-info" 
+                                                onclick="viewEvaluationDetails({{ evaluation.id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.test-image {
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.test-image:hover {
+    border-color: #007bff;
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px rgba(0,123,255,0.3) !important;
+}
+
+.analysis-summary {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    border-left: 4px solid #17a2b8;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+</style>
+
+<!-- Image Viewer Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">
+                    <i class="fas fa-search-plus me-2"></i>AI Test Image - #{{ test_result.id }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0">
+                <img src="{{ url_for('main.view_ai_test_image', test_id=test_result.id) }}" 
+                     alt="AI Test Image" 
+                     class="img-fluid"
+                     style="max-width: 100%; height: auto;">
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto">
+                    <small class="text-muted">
+                        <strong>Test ID:</strong> #{{ test_result.id }} | 
+                        <strong>Analyzed:</strong> {{ test_result.created_at.strftime('%Y-%m-%d %H:%M') }}
+                        {% if test_result.view_type %} | <strong>View:</strong> {{ test_result.view_type }}{% endif %}
+                    </small>
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openImageModal() {
+    var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+    imageModal.show();
+}
+
+function printFindings() {
+    window.print();
+}
+
+function viewEvaluationDetails(evaluationId) {
+    // TODO: Implement evaluation details modal or redirect
+    alert('Evaluation details view - ID: ' + evaluationId);
+}
+</script>
+
+{# Print-specific styles #}
+<style media="print">
+@media print {
+    .btn, .card-header, nav, footer {
+        display: none !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .findings-display {
+        page-break-inside: avoid;
+    }
+}
+</style>
+{% endblock %}

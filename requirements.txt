@@ -15,8 +15,11 @@ bcrypt==4.2.1
 email-validator==2.2.0
 
 # AI & API
-openai==1.57.4
+openai==2.15.0
 httpx==0.28.1
+langgraph==1.0.6
+langchain-core==1.2.7
+langchain-openai==1.1.7
 
 # Image Processing & PDF Generation
 Pillow==11.0.0

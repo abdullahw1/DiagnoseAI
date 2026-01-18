@@ -1,0 +1,671 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-check-circle me-2"></i>Evaluate AI-Generated Findings</h2>
+                    <p class="text-muted mb-0">{{ test_result.original_filename }}</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('main.view_ai_test_result', result_id=test_result.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Test Result
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Image Display -->
+                <div class="col-md-4">
+                    <div class="card shadow mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-image me-2"></i>Ultrasound Image
+                            </h6>
+                        </div>
+                        <div class="card-body text-center">
+                            <img src="{{ url_for('main.serve_ai_test_image', result_id=test_result.id) }}" 
+                                 alt="{{ test_result.original_filename }}" 
+                                 class="img-fluid rounded shadow-sm"
+                                 style="max-height: 400px;">
+                        </div>
+                    </div>
+
+                    <!-- Instructions -->
+                    <div class="card shadow">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>Evaluation Instructions
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-2"><strong>How to evaluate:</strong></p>
+                            <ol class="small mb-0">
+                                <li>Review each AI-generated finding below</li>
+                                <li>Check the box if the finding is <strong>correct</strong></li>
+                                <li>Leave unchecked if the finding is <strong>incorrect</strong></li>
+                                <li>Add any notes in the comments section</li>
+                                <li>Click "Submit Evaluation" to save</li>
+                            </ol>
+                            <hr>
+                            <p class="small text-muted mb-0">
+                                <i class="fas fa-lightbulb me-1"></i>
+                                Only fields with AI-generated values are shown for evaluation.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evaluation Form -->
+                <div class="col-md-8">
+                    <form method="POST" action="{{ url_for('main.evaluate_findings', result_id=test_result.id) }}">
+                        <!-- Liver Findings -->
+                        {% if findings.liver_size or findings.liver_texture or findings.liver_focal_defect or findings.liver_cbd or findings.liver_pv %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-heartbeat me-2"></i>Liver Findings
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>AI Value</th>
+                                                <th class="text-center">Correct?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if findings.liver_size %}
+                                            <tr>
+                                                <td><strong>Liver Size</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.liver_size }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_liver_size"
+                                                           {% if evaluation and evaluation.field_correctness.get('liver_size') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.liver_texture %}
+                                            <tr>
+                                                <td><strong>Liver Texture</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.liver_texture }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_liver_texture"
+                                                           {% if evaluation and evaluation.field_correctness.get('liver_texture') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.liver_focal_defect %}
+                                            <tr>
+                                                <td><strong>Liver Focal Defect</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.liver_focal_defect }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_liver_focal_defect"
+                                                           {% if evaluation and evaluation.field_correctness.get('liver_focal_defect') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.liver_cbd %}
+                                            <tr>
+                                                <td><strong>CBD</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.liver_cbd }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_liver_cbd"
+                                                           {% if evaluation and evaluation.field_correctness.get('liver_cbd') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.liver_pv %}
+                                            <tr>
+                                                <td><strong>Portal Vein</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.liver_pv }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_liver_pv"
+                                                           {% if evaluation and evaluation.field_correctness.get('liver_pv') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Spleen Findings -->
+                        {% if findings.spleen_size or findings.spleen_focal_defect %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-circle me-2"></i>Spleen Findings
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>AI Value</th>
+                                                <th class="text-center">Correct?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if findings.spleen_size %}
+                                            <tr>
+                                                <td><strong>Spleen Size</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.spleen_size }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_spleen_size"
+                                                           {% if evaluation and evaluation.field_correctness.get('spleen_size') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.spleen_focal_defect %}
+                                            <tr>
+                                                <td><strong>Spleen Focal Defect</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.spleen_focal_defect }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_spleen_focal_defect"
+                                                           {% if evaluation and evaluation.field_correctness.get('spleen_focal_defect') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Gall Bladder Findings -->
+                        {% if findings.gb_calculus or findings.gb_wall_edema %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-circle me-2"></i>Gall Bladder Findings
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>AI Value</th>
+                                                <th class="text-center">Correct?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if findings.gb_calculus %}
+                                            <tr>
+                                                <td><strong>GB Calculus</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.gb_calculus }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_gb_calculus"
+                                                           {% if evaluation and evaluation.field_correctness.get('gb_calculus') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.gb_wall_edema %}
+                                            <tr>
+                                                <td><strong>GB Wall Edema</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.gb_wall_edema }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_gb_wall_edema"
+                                                           {% if evaluation and evaluation.field_correctness.get('gb_wall_edema') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Right Kidney Findings -->
+                        {% if findings.right_kidney_size or findings.right_kidney_texture or findings.right_kidney_other %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-circle me-2"></i>Right Kidney Findings
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>AI Value</th>
+                                                <th class="text-center">Correct?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if findings.right_kidney_size %}
+                                            <tr>
+                                                <td><strong>Right Kidney Size</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.right_kidney_size }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_right_kidney_size"
+                                                           {% if evaluation and evaluation.field_correctness.get('right_kidney_size') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.right_kidney_texture %}
+                                            <tr>
+                                                <td><strong>Right Kidney Texture</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.right_kidney_texture }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_right_kidney_texture"
+                                                           {% if evaluation and evaluation.field_correctness.get('right_kidney_texture') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.right_kidney_other %}
+                                            <tr>
+                                                <td><strong>Right Kidney Other</strong></td>
+                                                <td>{{ findings.right_kidney_other }}</td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_right_kidney_other"
+                                                           {% if evaluation and evaluation.field_correctness.get('right_kidney_other') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Left Kidney Findings -->
+                        {% if findings.left_kidney_size or findings.left_kidney_texture or findings.left_kidney_other %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-circle me-2"></i>Left Kidney Findings
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>AI Value</th>
+                                                <th class="text-center">Correct?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if findings.left_kidney_size %}
+                                            <tr>
+                                                <td><strong>Left Kidney Size</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.left_kidney_size }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_left_kidney_size"
+                                                           {% if evaluation and evaluation.field_correctness.get('left_kidney_size') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.left_kidney_texture %}
+                                            <tr>
+                                                <td><strong>Left Kidney Texture</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.left_kidney_texture }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_left_kidney_texture"
+                                                           {% if evaluation and evaluation.field_correctness.get('left_kidney_texture') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.left_kidney_other %}
+                                            <tr>
+                                                <td><strong>Left Kidney Other</strong></td>
+                                                <td>{{ findings.left_kidney_other }}</td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_left_kidney_other"
+                                                           {% if evaluation and evaluation.field_correctness.get('left_kidney_other') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Pancreas Findings -->
+                        {% if findings.pancreas_findings %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-circle me-2"></i>Pancreas Findings
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>AI Value</th>
+                                                <th class="text-center">Correct?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><strong>Pancreas Findings</strong></td>
+                                                <td>{{ findings.pancreas_findings }}</td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_pancreas_findings"
+                                                           {% if evaluation and evaluation.field_correctness.get('pancreas_findings') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Urinary Bladder Findings -->
+                        {% if findings.bladder_filling or findings.bladder_stone_mass or findings.bladder_mucosal_irregularity %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-circle me-2"></i>Urinary Bladder Findings
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>AI Value</th>
+                                                <th class="text-center">Correct?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if findings.bladder_filling %}
+                                            <tr>
+                                                <td><strong>Bladder Filling</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.bladder_filling }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_bladder_filling"
+                                                           {% if evaluation and evaluation.field_correctness.get('bladder_filling') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.bladder_stone_mass %}
+                                            <tr>
+                                                <td><strong>Bladder Stone/Mass</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.bladder_stone_mass }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_bladder_stone_mass"
+                                                           {% if evaluation and evaluation.field_correctness.get('bladder_stone_mass') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.bladder_mucosal_irregularity %}
+                                            <tr>
+                                                <td><strong>Bladder Mucosal Irregularity</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.bladder_mucosal_irregularity }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_bladder_mucosal_irregularity"
+                                                           {% if evaluation and evaluation.field_correctness.get('bladder_mucosal_irregularity') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Prostate Findings -->
+                        {% if findings.prostate_findings %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-circle me-2"></i>Prostate Findings
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>AI Value</th>
+                                                <th class="text-center">Correct?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><strong>Prostate Findings</strong></td>
+                                                <td>{{ findings.prostate_findings }}</td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_prostate_findings"
+                                                           {% if evaluation and evaluation.field_correctness.get('prostate_findings') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Additional Findings -->
+                        {% if findings.ascites or findings.pleural_effusions or findings.para_aortic_lymph_nodes or findings.other_findings %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-plus-circle me-2"></i>Additional Findings
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>AI Value</th>
+                                                <th class="text-center">Correct?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if findings.ascites %}
+                                            <tr>
+                                                <td><strong>Ascites</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.ascites }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_ascites"
+                                                           {% if evaluation and evaluation.field_correctness.get('ascites') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.pleural_effusions %}
+                                            <tr>
+                                                <td><strong>Pleural Effusions</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.pleural_effusions }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_pleural_effusions"
+                                                           {% if evaluation and evaluation.field_correctness.get('pleural_effusions') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.para_aortic_lymph_nodes %}
+                                            <tr>
+                                                <td><strong>Para Aortic Lymph Nodes</strong></td>
+                                                <td><span class="badge bg-secondary">{{ findings.para_aortic_lymph_nodes }}</span></td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_para_aortic_lymph_nodes"
+                                                           {% if evaluation and evaluation.field_correctness.get('para_aortic_lymph_nodes') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                            {% if findings.other_findings %}
+                                            <tr>
+                                                <td><strong>Other Findings</strong></td>
+                                                <td>{{ findings.other_findings }}</td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_other_findings"
+                                                           {% if evaluation and evaluation.field_correctness.get('other_findings') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Comments -->
+                        {% if findings.comments %}
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-comment me-2"></i>Comments
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>AI Value</th>
+                                                <th class="text-center">Correct?</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><strong>Comments</strong></td>
+                                                <td>{{ findings.comments }}</td>
+                                                <td class="text-center">
+                                                    <input type="checkbox" 
+                                                           class="form-check-input" 
+                                                           name="correct_comments"
+                                                           {% if evaluation and evaluation.field_correctness.get('comments') %}checked{% endif %}>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Evaluation Notes -->
+                        <div class="card shadow mb-4">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-sticky-note me-2"></i>Evaluation Notes
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label class="form-label">Additional Comments (Optional)</label>
+                                    <textarea class="form-control" 
+                                              name="evaluation_notes" 
+                                              rows="4" 
+                                              placeholder="Add any additional notes about this evaluation...">{% if evaluation %}{{ evaluation.evaluation_notes }}{% endif %}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check me-2"></i>
+                                {% if evaluation %}Update Evaluation{% else %}Submit Evaluation{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.form-check-input {
+    width: 1.5em;
+    height: 1.5em;
+    cursor: pointer;
+}
+
+.card-header h5 {
+    font-size: 1.1rem;
+}
+
+.badge {
+    font-size: 0.9rem;
+    padding: 0.4em 0.8em;
+}
+</style>
+{% endblock %}

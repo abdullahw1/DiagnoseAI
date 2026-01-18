@@ -21,10 +21,19 @@ DiagnoseAI is a comprehensive Flask-based web application designed to streamline
 - Case status workflow (pending, reviewed, finalized)
 
 ### 🤖 AI-Powered Analysis
+- **Multi-Agent Architecture**: Six specialized AI agents working in sequence
+  - Agent A: Clinical Context Extraction
+  - Agent B: View Identification & Quality Assessment
+  - Agent C: Image Findings Extraction (Enhanced with Structured Findings)
+  - Agent D: Diagnostic Reasoning
+  - Agent E: Structured Report Drafting
+  - Agent F: Safety & Consistency Validation
 - GPT-4o integration for ultrasound image analysis
 - Automated preliminary report generation
 - Support for multiple ultrasound views (Left Lobe TR, Portal Vein, etc.)
 - Structured JSON and formatted text reports
+- **Structured Ultrasound Findings**: Comprehensive organ-by-organ findings capture
+- Human-in-the-Loop (HITL) review workflow
 
 ### 📝 Report Management
 - Interactive report editing interface
@@ -38,6 +47,8 @@ DiagnoseAI is a comprehensive Flask-based web application designed to streamline
 - Star rating system for AI accuracy
 - Detailed test result analytics with images
 - Test history and comparison tools
+- **Structured Findings Evaluation**: Field-by-field accuracy assessment
+- **Performance Metrics Dashboard**: Organ-level, field-level, and temporal accuracy tracking
 
 ### 🌐 Flexible Deployment Options
 - **Local Development**: SQLite database for quick setup
@@ -106,11 +117,14 @@ Share the generated public URL for worldwide access.
 |----------|-----------|
 | **Backend** | Flask 3.0.3, Python 3.9+ |
 | **Database** | PostgreSQL 15 / SQLite |
+| **ORM & Migrations** | SQLAlchemy, Alembic |
 | **Authentication** | Flask-Login, bcrypt |
 | **AI Integration** | OpenAI GPT-4o API |
+| **Multi-Agent Framework** | LangGraph |
 | **Image Processing** | Pillow 11.0.0 |
 | **PDF Generation** | ReportLab 4.2.5 |
-| **Frontend** | HTML5, CSS3, JavaScript |
+| **Forms** | WTForms, Flask-WTF |
+| **Frontend** | HTML5, CSS3, JavaScript, Bootstrap 5 |
 | **Deployment** | Docker, Kubernetes, Gunicorn |
 
 ## 📁 Project Structure
@@ -119,15 +133,32 @@ Share the generated public URL for worldwide access.
 DiagnoseAI/
 ├── app/                          # Main application package
 │   ├── __init__.py              # Flask app factory
-│   ├── models.py                # Database models (User, Patient, Case, Report)
+│   ├── models.py                # Database models (User, Patient, Case, Report, etc.)
 │   ├── auth.py                  # Authentication routes
 │   ├── main.py                  # Main application routes
 │   ├── forms.py                 # WTForms form definitions
 │   ├── ai_service.py            # OpenAI GPT-4o integration
+│   ├── agents/                  # Multi-agent AI pipeline
+│   │   ├── base_agent.py        # Base agent class
+│   │   ├── orchestrator.py      # LangGraph orchestrator
+│   │   ├── agent_a_context.py   # Clinical context extraction
+│   │   ├── agent_b_quality.py   # Quality assessment
+│   │   ├── agent_c_findings.py  # Findings extraction
+│   │   ├── agent_c_findings_enhanced.py  # Structured findings extraction
+│   │   ├── agent_d_reasoning.py # Diagnostic reasoning
+│   │   ├── agent_e_report.py    # Report drafting
+│   │   └── agent_f_safety.py    # Safety validation
+│   ├── feedback/                # Human-in-the-Loop feedback system
+│   │   └── capture.py           # Feedback capture utilities
 │   └── templates/               # Jinja2 HTML templates
 │       ├── base.html            # Base template
 │       ├── auth/                # Authentication templates
 │       └── main/                # Main app templates
+│           ├── _structured_findings_form.html  # Findings form partial
+│           ├── _findings_display.html          # Findings display partial
+│           ├── evaluate_findings.html          # Findings evaluation
+│           ├── findings_metrics.html           # Metrics dashboard
+│           └── review.html                     # HITL review interface
 ├── static/                       # Static assets
 │   └── uploads/                 # Uploaded ultrasound images
 ├── tests/                        # Test suite
@@ -135,7 +166,14 @@ DiagnoseAI/
 │   ├── test_auth.py             # Authentication tests
 │   ├── test_upload.py           # Upload functionality tests
 │   ├── test_ai_service.py       # AI service tests
-│   └── test_ai_integration.py   # Integration tests
+│   ├── test_ai_integration.py   # Integration tests
+│   ├── test_agent_*.py          # Multi-agent pipeline tests
+│   ├── test_orchestrator.py     # Orchestrator tests
+│   ├── test_structured_findings_*.py  # Structured findings tests
+│   ├── test_evaluation_interface.py   # Evaluation interface tests
+│   ├── test_findings_display.py       # Findings display tests
+│   ├── test_feedback_capture.py       # HITL feedback tests
+│   └── test_case_workflow_e2e.py      # End-to-end workflow tests
 ├── scripts/                      # Utility scripts
 │   ├── batch_ai_test.py         # Batch AI testing
 │   ├── check_network.py         # Network diagnostics
@@ -165,6 +203,8 @@ DiagnoseAI/
 │   ├── init-db.sql              # Database initialization
 │   └── create-tables.sql        # Table creation scripts
 ├── migrations/                   # Alembic database migrations
+│   ├── versions/                # Migration version files
+│   └── README_MULTI_AGENT.md    # Multi-agent migration documentation
 ├── instance/                     # Instance-specific files (SQLite DB)
 ├── .env.example                  # Environment template
 ├── .env.production               # Production environment template
@@ -179,50 +219,130 @@ DiagnoseAI/
 
 ## 🗄️ Database Models
 
-### User
+### Core Models
+
+#### User
 - `id`: Primary key
 - `username`: Unique username
 - `email`: Unique email address
 - `password_hash`: Bcrypt hashed password
 - `created_at`: Account creation timestamp
 
-### Patient
+#### Patient
 - `id`: Primary key
-- `name`: Patient full name
+- `patient_id`: Unique patient identifier
+- `first_name`, `last_name`: Patient name
 - `date_of_birth`: Patient DOB
-- `medical_record_number`: Unique MRN
-- `contact_info`: Contact information
+- `gender`: Patient gender
+- `contact_phone`, `contact_email`: Contact information
+- `created_by`: Foreign key to User
 - `created_at`: Record creation timestamp
 
-### Case
+#### Case
 - `id`: Primary key
+- `case_number`: Unique case identifier
 - `patient_id`: Foreign key to Patient
 - `user_id`: Foreign key to User (creator)
-- `clinical_notes`: Clinical observations
-- `status`: Case status (pending/reviewed/finalized)
-- `image_paths`: JSON array of image paths (up to 4)
+- `study_type`: Type of study (e.g., Ultrasound)
+- `body_part`: Body part examined
+- `indication`: Clinical indication
+- `clinical_history`: Patient history
+- `status`: Case status (uploaded/analysis_complete/reviewed/finalized)
 - `created_at`, `updated_at`: Timestamps
 
-### Report
+#### CaseImage
 - `id`: Primary key
 - `case_id`: Foreign key to Case
-- `draft_json`: Raw AI response JSON
-- `draft_text`: Formatted AI-generated text
+- `image_path`: Path to uploaded image
+- `image_order`: Display order (1-4)
+- `uploaded_at`: Upload timestamp
+
+### Structured Findings Models
+
+#### StructuredFindings
+User-provided structured findings during case creation:
+- `id`: Primary key
+- `case_id`: Foreign key to Case (unique)
+- **Liver**: size, texture, focal_defect, cbd, pv
+- **Spleen**: size, focal_defect
+- **Gall Bladder**: calculus, wall_edema
+- **Kidneys** (Right/Left): size, texture, other findings
+- **Pancreas**: findings (free text)
+- **Urinary Bladder**: filling, stone_mass, mucosal_irregularity
+- **Prostate**: findings (free text)
+- **Additional**: ascites, pleural_effusions, para_aortic_lymph_nodes, other
+- `comments`: Additional observations
+- `created_at`, `updated_at`: Timestamps
+
+#### AIGeneratedFindings
+AI-extracted structured findings from image analysis:
+- Same structure as StructuredFindings
+- `confidence_scores`: JSON field with per-field confidence
+- `ai_test_result_id`: Optional link to AI test result
+- `created_at`: Generation timestamp
+
+#### FindingsEvaluation
+Radiologist evaluation of AI-generated findings:
+- `id`: Primary key
+- `ai_finding_id`: Foreign key to AIGeneratedFindings
+- `user_id`: Foreign key to User (evaluator)
+- `field_correctness`: JSON field with per-field correctness (true/false)
+- `total_fields`, `correct_fields`: Aggregate counts
+- `accuracy_percentage`: Overall accuracy
+- `evaluation_notes`: Evaluator comments
+- `created_at`: Evaluation timestamp
+
+### Multi-Agent Pipeline Models
+
+#### AgentOutput
+Audit trail for agent executions:
+- `id`: Primary key
+- `case_id`: Foreign key to Case
+- `agent_name`: Name of the agent (agent_a through agent_f)
+- `input_data`: JSON input to agent
+- `output_data`: JSON output from agent
+- `execution_time_ms`: Execution duration
+- `error_message`: Error details if failed
+- `created_at`: Execution timestamp
+
+#### Report
+- `id`: Primary key
+- `case_id`: Foreign key to Case
+- `draft_json`: Complete multi-agent pipeline output
+- `draft_text`: Formatted AI-generated report
 - `final_text`: User-edited final report
+- `confidence_score`: Overall confidence from Agent F
+- `safety_flags`: JSON array of safety concerns
 - `is_finalized`: Finalization status
 - `created_at`, `updated_at`: Timestamps
 
-### AITestResult
+#### FeedbackCapture
+Human-in-the-Loop feedback:
+- `id`: Primary key
+- `case_id`: Foreign key to Case
+- `agent_name`: Agent being reviewed
+- `feedback_type`: Type of feedback (correction/approval/flag)
+- `original_output`: Original agent output
+- `corrected_output`: User-corrected output
+- `feedback_notes`: User comments
+- `user_id`: Foreign key to User
+- `created_at`: Feedback timestamp
+
+### AI Testing Models
+
+#### AITestResult
 - `id`: Primary key
 - `user_id`: Foreign key to User
-- `image_filename`: Test image filename
+- `original_filename`: Original image filename
 - `image_path`: Path to test image
 - `view_type`: Ultrasound view type
-- `ai_response_json`: Raw AI analysis
-- `ai_response_text`: Formatted analysis
-- `rating`: User rating (1-5 stars)
-- `comments`: User feedback
-- `created_at`: Test timestamp
+- `image_context`: Additional context
+- `analysis_result`: AI analysis text
+- `analysis_json`: Raw AI response JSON
+- `accuracy_rating`, `completeness_rating`, `terminology_rating`: User ratings
+- `overall_rating`: Overall rating (1-5 stars)
+- `evaluation_comments`: User feedback
+- `created_at`, `updated_at`: Timestamps
 
 ## ⚙️ Configuration
 
@@ -269,6 +389,106 @@ flask db upgrade
 
 # 3. Create admin user
 python scripts/create_admin_user.py
+```
+
+## 🏗️ Architecture
+
+### Multi-Agent AI Pipeline
+
+DiagnoseAI uses a sophisticated multi-agent architecture powered by LangGraph for sequential processing:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Case Creation & Upload                       │
+│  • Patient Information  • Clinical History  • Ultrasound Images  │
+│  • Optional: User-Provided Structured Findings                   │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   Multi-Agent Pipeline (LangGraph)               │
+├─────────────────────────────────────────────────────────────────┤
+│  Agent A: Clinical Context Extraction                            │
+│  • Extracts relevant history, indication, labs                   │
+│  • Includes user-provided structured findings as context         │
+│  • Identifies clinical questions to address                      │
+├─────────────────────────────────────────────────────────────────┤
+│  Agent B: View Identification & Quality Assessment               │
+│  • Identifies ultrasound views (liver, kidney, etc.)             │
+│  • Assesses image quality and adequacy                           │
+│  • Flags technical limitations                                   │
+├─────────────────────────────────────────────────────────────────┤
+│  Agent C: Image Findings Extraction (Enhanced)                   │
+│  • Analyzes images for pathological findings                     │
+│  • Extracts structured findings by organ system                  │
+│  • Generates confidence scores per finding                       │
+│  • Stores AIGeneratedFindings for evaluation                     │
+├─────────────────────────────────────────────────────────────────┤
+│  Agent D: Diagnostic Reasoning                                   │
+│  • Synthesizes findings into differential diagnoses              │
+│  • Correlates imaging with clinical context                      │
+│  • Provides diagnostic confidence levels                         │
+├─────────────────────────────────────────────────────────────────┤
+│  Agent E: Structured Report Drafting                             │
+│  • Generates comprehensive radiology report                      │
+│  • Follows standard reporting format                             │
+│  • Includes recommendations and follow-up                        │
+├─────────────────────────────────────────────────────────────────┤
+│  Agent F: Safety & Consistency Validation                        │
+│  • Validates report completeness and accuracy                    │
+│  • Checks for critical findings                                  │
+│  • Ensures clinical safety and consistency                       │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Human-in-the-Loop (HITL) Review                     │
+│  • Radiologist reviews AI-generated report                       │
+│  • Provides feedback on agent outputs                            │
+│  • Edits and finalizes report                                    │
+│  • Evaluates structured findings accuracy                        │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Finalized Report & Metrics                    │
+│  • PDF/Text export  • Audit trail  • Performance metrics         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Structured Findings Workflow
+
+```
+User-Provided Findings          AI-Generated Findings
+(During Case Creation)          (From Image Analysis)
+        │                               │
+        ├───────────┬───────────────────┤
+        │           │                   │
+        ▼           ▼                   ▼
+   Stored in    Passed as          Stored in
+StructuredFindings  Context    AIGeneratedFindings
+        │           │                   │
+        │           │                   │
+        └───────────┴───────────────────┘
+                    │
+                    ▼
+            ┌───────────────┐
+            │   Evaluation  │
+            │   Interface   │
+            └───────┬───────┘
+                    │
+                    ▼
+          FindingsEvaluation
+          (Field-by-field
+           correctness)
+                    │
+                    ▼
+          ┌─────────────────┐
+          │ Metrics Dashboard│
+          │ • Organ accuracy │
+          │ • Field accuracy │
+          │ • Temporal trends│
+          └─────────────────┘
 ```
 
 ## 🧪 Testing

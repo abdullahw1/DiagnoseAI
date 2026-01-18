@@ -1,0 +1,182 @@
+<!-- Structured Findings Form Partial -->
+<div class="row mb-4">
+    <div class="col-12">
+        <h6 class="text-primary border-bottom pb-2 mb-3">
+            <i class="fas fa-clipboard-list me-2"></i>Structured Findings (Optional)
+        </h6>
+        <p class="text-muted small mb-3">
+            Optionally provide structured findings to give the AI additional context for analysis.
+            All fields are optional - fill in only what is relevant.
+        </p>
+    </div>
+    
+    <!-- Liver Findings -->
+    <div class="col-12 mb-3">
+        <h6 class="text-secondary mb-2"><i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Liver</h6>
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                {{ findings_form.liver_size.label(class="form-label small") }}
+                {{ findings_form.liver_size(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-4 mb-2">
+                {{ findings_form.liver_texture.label(class="form-label small") }}
+                {{ findings_form.liver_texture(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-4 mb-2">
+                {{ findings_form.liver_focal_defect.label(class="form-label small") }}
+                {{ findings_form.liver_focal_defect(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-6 mb-2">
+                {{ findings_form.liver_cbd.label(class="form-label small") }}
+                {{ findings_form.liver_cbd(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-6 mb-2">
+                {{ findings_form.liver_pv.label(class="form-label small") }}
+                {{ findings_form.liver_pv(class="form-select form-select-sm") }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Spleen Findings -->
+    <div class="col-12 mb-3">
+        <h6 class="text-secondary mb-2"><i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Spleen</h6>
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                {{ findings_form.spleen_size.label(class="form-label small") }}
+                {{ findings_form.spleen_size(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-6 mb-2">
+                {{ findings_form.spleen_focal_defect.label(class="form-label small") }}
+                {{ findings_form.spleen_focal_defect(class="form-select form-select-sm") }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gall Bladder Findings -->
+    <div class="col-12 mb-3">
+        <h6 class="text-secondary mb-2"><i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Gall Bladder</h6>
+        <div class="row">
+            <div class="col-md-6 mb-2">
+                {{ findings_form.gb_calculus.label(class="form-label small") }}
+                {{ findings_form.gb_calculus(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-6 mb-2">
+                {{ findings_form.gb_wall_edema.label(class="form-label small") }}
+                {{ findings_form.gb_wall_edema(class="form-select form-select-sm") }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Kidney Findings -->
+    <div class="col-12 mb-3">
+        <h6 class="text-secondary mb-2"><i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Right Kidney</h6>
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                {{ findings_form.right_kidney_size.label(class="form-label small") }}
+                {{ findings_form.right_kidney_size(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-4 mb-2">
+                {{ findings_form.right_kidney_texture.label(class="form-label small") }}
+                {{ findings_form.right_kidney_texture(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-4 mb-2">
+                {{ findings_form.right_kidney_other.label(class="form-label small") }}
+                {{ findings_form.right_kidney_other(class="form-control form-control-sm", placeholder="Stone/Cyst/Hydronephrosis") }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Left Kidney Findings -->
+    <div class="col-12 mb-3">
+        <h6 class="text-secondary mb-2"><i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Left Kidney</h6>
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                {{ findings_form.left_kidney_size.label(class="form-label small") }}
+                {{ findings_form.left_kidney_size(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-4 mb-2">
+                {{ findings_form.left_kidney_texture.label(class="form-label small") }}
+                {{ findings_form.left_kidney_texture(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-4 mb-2">
+                {{ findings_form.left_kidney_other.label(class="form-label small") }}
+                {{ findings_form.left_kidney_other(class="form-control form-control-sm", placeholder="Stone/Cyst/Hydronephrosis") }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pancreas Findings -->
+    <div class="col-12 mb-3">
+        <h6 class="text-secondary mb-2"><i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Pancreas</h6>
+        <div class="row">
+            <div class="col-12 mb-2">
+                {{ findings_form.pancreas_findings.label(class="form-label small") }}
+                {{ findings_form.pancreas_findings(class="form-control form-control-sm", placeholder="Free text findings") }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Urinary Bladder Findings -->
+    <div class="col-12 mb-3">
+        <h6 class="text-secondary mb-2"><i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Urinary Bladder</h6>
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                {{ findings_form.bladder_filling.label(class="form-label small") }}
+                {{ findings_form.bladder_filling(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-4 mb-2">
+                {{ findings_form.bladder_stone_mass.label(class="form-label small") }}
+                {{ findings_form.bladder_stone_mass(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-4 mb-2">
+                {{ findings_form.bladder_mucosal_irregularity.label(class="form-label small") }}
+                {{ findings_form.bladder_mucosal_irregularity(class="form-select form-select-sm") }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Prostate Findings -->
+    <div class="col-12 mb-3">
+        <h6 class="text-secondary mb-2"><i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Prostate</h6>
+        <div class="row">
+            <div class="col-12 mb-2">
+                {{ findings_form.prostate_findings.label(class="form-label small") }}
+                {{ findings_form.prostate_findings(class="form-control form-control-sm", placeholder="Free text findings") }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Additional Findings -->
+    <div class="col-12 mb-3">
+        <h6 class="text-secondary mb-2"><i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Additional Findings</h6>
+        <div class="row">
+            <div class="col-md-4 mb-2">
+                {{ findings_form.ascites.label(class="form-label small") }}
+                {{ findings_form.ascites(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-4 mb-2">
+                {{ findings_form.pleural_effusions.label(class="form-label small") }}
+                {{ findings_form.pleural_effusions(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-md-4 mb-2">
+                {{ findings_form.para_aortic_lymph_nodes.label(class="form-label small") }}
+                {{ findings_form.para_aortic_lymph_nodes(class="form-select form-select-sm") }}
+            </div>
+            <div class="col-12 mb-2">
+                {{ findings_form.other_findings.label(class="form-label small") }}
+                {{ findings_form.other_findings(class="form-control form-control-sm", placeholder="Other findings") }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Comments -->
+    <div class="col-12 mb-3">
+        <h6 class="text-secondary mb-2"><i class="fas fa-circle me-2" style="font-size: 0.5rem;"></i>Comments</h6>
+        <div class="row">
+            <div class="col-12 mb-2">
+                {{ findings_form.comments.label(class="form-label small") }}
+                {{ findings_form.comments(class="form-control form-control-sm", placeholder="Additional comments or observations") }}
+            </div>
+        </div>
+    </div>
+</div>

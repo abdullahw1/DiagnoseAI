@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="fas fa-clipboard-check me-2"></i>Review AI Report</h2>
+                <p class="text-muted mb-0">
+                    Case: <strong>{{ case.formatted_case_number }}</strong> | 
+                    Patient: <strong>{{ case.patient.full_name }}</strong> (ID: {{ case.patient.patient_id }})
+                </p>
+            </div>
+            <a href="{{ url_for('main.view_case', case_id=case.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Case
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Confidence Score and Safety Flags Alert -->
+{% if report.confidence_score or report.safety_flags %}
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>AI Analysis Metadata</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if report.confidence_score %}
+                    <div class="col-md-6">
+                        <h6>Confidence Score</h6>
+                        <div class="progress" style="height: 25px;">
+                            {% set confidence_pct = (report.confidence_score * 100)|int %}
+                            {% if confidence_pct >= 80 %}
+                                {% set progress_class = 'bg-success' %}
+                            {% elif confidence_pct >= 60 %}
+                                {% set progress_class = 'bg-warning' %}
+                            {% else %}
+                                {% set progress_class = 'bg-danger' %}
+                            {% endif %}
+                            <div class="progress-bar {{ progress_class }}" role="progressbar" 
+                                 style="width: {{ confidence_pct }}%;" 
+                                 aria-valuenow="{{ confidence_pct }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ "%.1f"|format(report.confidence_score * 100) }}%
+                            </div>
+                        </div>
+                        <small class="text-muted">AI's confidence in this analysis</small>
+                    </div>
+                    {% endif %}
+                    
+                    {% if report.safety_flags %}
+                    <div class="col-md-6">
+                        <h6>Safety Flags</h6>
+                        {% if report.safety_flags.flags and report.safety_flags.flags|length > 0 %}
+                            <div class="alert alert-warning mb-0 py-2">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>{{ report.safety_flags.flags|length }} flag(s) detected:</strong>
+                                <ul class="mb-0 mt-2">
+                                    {% for flag in report.safety_flags.flags %}
+                                    <li>{{ flag }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-success mb-0 py-2">
+                                <i class="fas fa-check-circle me-2"></i>No safety concerns detected
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Left Column: Image and Clinical Info -->
+    <div class="col-md-5">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5><i class="fas fa-x-ray me-2"></i>{{ case.study_type }} Image</h5>
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ url_for('main.view_case_image', case_id=case.id) }}" 
+                     alt="{{ case.study_type }} Image" 
+                     class="img-fluid rounded shadow-sm"
+                     style="max-height: 300px; cursor: pointer;"
+                     onclick="openImageModal()"
+                     onerror="this.style.display='none'; document.getElementById('image-error').style.display='block';">
+                
+                <div id="image-error" style="display: none;">
+                    <i class="fas fa-file-image fa-4x text-muted mb-3"></i>
+                    <p class="text-muted">Image could not be loaded</p>
+                </div>
+                
+                <p class="text-muted mt-2 mb-0">{{ case.image_filename }}</p>
+                <small class="text-muted">Click to view full size</small>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-notes-medical me-2"></i>Clinical Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="clinical-notes">
+                    <strong>Indication:</strong><br>
+                    {{ case.indication|nl2br if case.indication else 'No indication provided.' }}
+                    
+                    {% if case.clinical_history %}
+                    <br><br><strong>Clinical History:</strong><br>
+                    {{ case.clinical_history|nl2br }}
+                    {% endif %}
+                    
+                    {% if case.referring_physician %}
+                    <br><br><strong>Referring Physician:</strong><br>
+                    {{ case.referring_physician }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column: AI Report and Actions -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-robot me-2"></i>AI-Generated Draft Report</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Review Required:</strong> This AI-generated report requires your professional review and validation before clinical use.
+                </div>
+                
+                <div class="report-content mb-4">
+                    {{ report.draft_text|markdown_to_html }}
+                </div>
+                
+                <!-- HITL Action Buttons -->
+                <div class="card border-warning">
+                    <div class="card-header bg-warning">
+                        <h6 class="mb-0"><i class="fas fa-hand-paper me-2"></i>Human-in-the-Loop Review Actions</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3">Please select one of the following actions:</p>
+                        
+                        <div class="row g-3">
+                            <!-- Approve Button -->
+                            <div class="col-12">
+                                <button type="button" class="btn btn-success btn-lg w-100" 
+                                        data-bs-toggle="modal" data-bs-target="#approveModal">
+                                    <i class="fas fa-check-circle me-2"></i>APPROVE
+                                    <small class="d-block mt-1" style="font-size: 0.75rem;">
+                                        Accept this report as clinically accurate without modifications
+                                    </small>
+                                </button>
+                            </div>
+                            
+                            <!-- Modify Button -->
+                            <div class="col-12">
+                                <button type="button" class="btn btn-warning btn-lg w-100" 
+                                        data-bs-toggle="modal" data-bs-target="#modifyModal">
+                                    <i class="fas fa-edit me-2"></i>MODIFY
+                                    <small class="d-block mt-1" style="font-size: 0.75rem;">
+                                        Edit findings, reasoning, or report text before finalizing
+                                    </small>
+                                </button>
+                            </div>
+                            
+                            <!-- Reject Button -->
+                            <div class="col-12">
+                                <button type="button" class="btn btn-danger btn-lg w-100" 
+                                        data-bs-toggle="modal" data-bs-target="#rejectModal">
+                                    <i class="fas fa-times-circle me-2"></i>REJECT
+                                    <small class="d-block mt-1" style="font-size: 0.75rem;">
+                                        Discard AI output and provide independent interpretation
+                                    </small>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Important:</strong> All actions are logged for audit trail and quality improvement.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="approveModalLabel">
+                    <i class="fas fa-check-circle me-2"></i>Approve AI Report
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.approve_case', case_id=case.id) }}">
+                <div class="modal-body">
+                    <p>You are about to approve this AI-generated report as clinically accurate.</p>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        By approving, you confirm that:
+                        <ul class="mb-0 mt-2">
+                            <li>The findings are accurate and complete</li>
+                            <li>The diagnostic reasoning is sound</li>
+                            <li>The report meets clinical standards</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confidence_level" class="form-label">
+                            <strong>Your Confidence Level:</strong>
+                        </label>
+                        <select class="form-select" id="confidence_level" name="confidence_level" required>
+                            <option value="">Select confidence level...</option>
+                            <option value="5">5 - Very High (Completely confident)</option>
+                            <option value="4">4 - High (Confident with minor reservations)</option>
+                            <option value="3">3 - Moderate (Acceptable but some concerns)</option>
+                            <option value="2">2 - Low (Significant concerns)</option>
+                            <option value="1">1 - Very Low (Major concerns)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="approval_notes" class="form-label">Additional Notes (Optional):</label>
+                        <textarea class="form-control" id="approval_notes" name="notes" rows="3" 
+                                  placeholder="Any additional comments about this approval..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check-circle me-1"></i>Confirm Approval
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modify Modal -->
+<div class="modal fade" id="modifyModal" tabindex="-1" aria-labelledby="modifyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="modifyModalLabel">
+                    <i class="fas fa-edit me-2"></i>Modify AI Report
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.modify_case', case_id=case.id) }}">
+                <div class="modal-body">
+                    <p>Edit the AI-generated report to correct or enhance the findings.</p>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Note:</strong> Your modifications will be tracked for continuous AI improvement.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modified_text" class="form-label">
+                            <strong>Report Text:</strong>
+                        </label>
+                        <textarea class="form-control font-monospace" id="modified_text" name="modified_text" 
+                                  rows="15" required>{{ report.draft_text }}</textarea>
+                        <small class="text-muted">Edit the report text as needed. Changes will be tracked.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="modification_notes" class="form-label">
+                            <strong>Modification Summary:</strong>
+                        </label>
+                        <textarea class="form-control" id="modification_notes" name="notes" rows="3" 
+                                  placeholder="Briefly describe what you changed and why..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save me-1"></i>Save Modifications
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="rejectModalLabel">
+                    <i class="fas fa-times-circle me-2"></i>Reject AI Report
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.reject_case', case_id=case.id) }}">
+                <div class="modal-body">
+                    <p>You are about to reject this AI-generated report.</p>
+                    
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> The AI output will be discarded. You will need to provide an independent interpretation.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="rejection_reason" class="form-label">
+                            <strong>Reason for Rejection:</strong> <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select mb-2" id="rejection_reason" name="rejection_reason" required>
+                            <option value="">Select a reason...</option>
+                            <option value="incorrect_findings">Incorrect or missed findings</option>
+                            <option value="poor_quality">Poor image quality assessment</option>
+                            <option value="wrong_diagnosis">Incorrect diagnostic reasoning</option>
+                            <option value="incomplete">Incomplete analysis</option>
+                            <option value="safety_concern">Safety concern or critical error</option>
+                            <option value="other">Other (specify below)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="rejection_details" class="form-label">
+                            <strong>Detailed Explanation:</strong> <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" id="rejection_details" name="rejection_details" rows="4" 
+                                  placeholder="Please provide specific details about why this report is being rejected..." required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="correct_interpretation" class="form-label">
+                            <strong>Your Correct Interpretation:</strong>
+                        </label>
+                        <textarea class="form-control" id="correct_interpretation" name="correct_interpretation" rows="4" 
+                                  placeholder="Provide your independent interpretation (optional but recommended for AI improvement)..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-times-circle me-1"></i>Confirm Rejection
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Image Viewer Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">
+                    <i class="fas fa-search-plus me-2"></i>{{ case.study_type }} Image - {{ case.formatted_case_number }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0">
+                <img src="{{ url_for('main.view_case_image', case_id=case.id) }}" 
+                     alt="{{ case.study_type }} Image" 
+                     class="img-fluid"
+                     style="max-width: 100%; height: auto;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.clinical-notes {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    border-left: 4px solid #0d6efd;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 0.9rem;
+}
+
+.report-content {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 0.375rem;
+    border-left: 4px solid #0d6efd;
+    max-height: 500px;
+    overflow-y: auto;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.8;
+}
+
+.report-content strong {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.btn-lg small {
+    font-weight: normal;
+    opacity: 0.9;
+}
+</style>
+
+<script>
+function openImageModal() {
+    var imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+    imageModal.show();
+}
+</script>
+{% endblock %}

@@ -11,12 +11,79 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import re
 from sqlalchemy import func
-from app.models import Case, Report, Patient, CaseImage, AITestResult
-from app.forms import UploadForm, ReportEditForm, PatientForm, CaseForm
+from app.models import Case, Report, Patient, CaseImage, AITestResult, StructuredFindings, AIGeneratedFindings, FindingsEvaluation
+from app.forms import UploadForm, ReportEditForm, PatientForm, CaseForm, StructuredFindingsForm
 from app.ai_service import generate_draft_report, AIServiceError
 from app import db
 
+# Import orchestrator for multi-agent pipeline
+from app.agents.orchestrator import AgentOrchestrator
+from app.agents.agent_a_context import ClinicalContextAgent
+from app.agents.agent_b_quality import QualityAssessmentAgent
+from app.agents.agent_c_findings import FindingsExtractionAgent
+from app.agents.agent_d_reasoning import DiagnosticReasoningAgent
+from app.agents.agent_e_report import ReportDraftingAgent
+from app.agents.agent_f_safety import SafetyValidationAgent
+
 bp = Blueprint('main', __name__)
+
+
+def run_multi_agent_pipeline(case_id: int) -> dict:
+    """
+    Execute the multi-agent pipeline for a case.
+    
+    This function initializes all agents, creates an orchestrator,
+    and runs the complete pipeline for the given case.
+    
+    Args:
+        case_id: ID of the case to process
+        
+    Returns:
+        Dictionary containing:
+            - success: Boolean indicating overall success
+            - report_id: ID of the created report (if successful)
+            - errors: List of error messages
+            - execution_log: List of agent execution details
+    """
+    try:
+        current_app.logger.info(f"Initializing multi-agent pipeline for case {case_id}")
+        
+        # Initialize all agents
+        agents = {
+            'agent_a': ClinicalContextAgent(),
+            'agent_b': QualityAssessmentAgent(),
+            'agent_c': FindingsExtractionAgent(),
+            'agent_d': DiagnosticReasoningAgent(),
+            'agent_e': ReportDraftingAgent(),
+            'agent_f': SafetyValidationAgent()
+        }
+        
+        # Create orchestrator and register agents
+        orchestrator = AgentOrchestrator(agents=agents)
+        
+        # Build the agent pipeline graph
+        orchestrator.build_graph()
+        
+        # Execute the pipeline
+        result = orchestrator.orchestrate_analysis(case_id)
+        
+        current_app.logger.info(
+            f"Multi-agent pipeline completed for case {case_id}. "
+            f"Success: {result['success']}, Report ID: {result.get('report_id')}"
+        )
+        
+        return result
+        
+    except Exception as e:
+        error_msg = f"Failed to run multi-agent pipeline: {str(e)}"
+        current_app.logger.error(error_msg, exc_info=True)
+        return {
+            'success': False,
+            'report_id': None,
+            'errors': [error_msg],
+            'execution_log': []
+        }
+
 
 def allowed_file(filename):
     """Check if the uploaded file has an allowed extension."""
@@ -77,6 +144,47 @@ def save_case_image(file, case_id, order_index, user_id):
     )
     
     return case_image
+
+def has_any_findings(findings_form):
+    """Check if any findings fields have been filled in."""
+    for field_name, field in findings_form._fields.items():
+        if field_name == 'csrf_token':
+            continue
+        if field.data and field.data != '':
+            return True
+    return False
+
+def create_findings_from_form(findings_form, case_id):
+    """Create StructuredFindings object from form data."""
+    findings = StructuredFindings(
+        case_id=case_id,
+        liver_size=findings_form.liver_size.data if findings_form.liver_size.data else None,
+        liver_texture=findings_form.liver_texture.data if findings_form.liver_texture.data else None,
+        liver_focal_defect=findings_form.liver_focal_defect.data if findings_form.liver_focal_defect.data else None,
+        liver_cbd=findings_form.liver_cbd.data if findings_form.liver_cbd.data else None,
+        liver_pv=findings_form.liver_pv.data if findings_form.liver_pv.data else None,
+        spleen_size=findings_form.spleen_size.data if findings_form.spleen_size.data else None,
+        spleen_focal_defect=findings_form.spleen_focal_defect.data if findings_form.spleen_focal_defect.data else None,
+        gb_calculus=findings_form.gb_calculus.data if findings_form.gb_calculus.data else None,
+        gb_wall_edema=findings_form.gb_wall_edema.data if findings_form.gb_wall_edema.data else None,
+        right_kidney_size=findings_form.right_kidney_size.data if findings_form.right_kidney_size.data else None,
+        right_kidney_texture=findings_form.right_kidney_texture.data if findings_form.right_kidney_texture.data else None,
+        right_kidney_other=findings_form.right_kidney_other.data if findings_form.right_kidney_other.data else None,
+        left_kidney_size=findings_form.left_kidney_size.data if findings_form.left_kidney_size.data else None,
+        left_kidney_texture=findings_form.left_kidney_texture.data if findings_form.left_kidney_texture.data else None,
+        left_kidney_other=findings_form.left_kidney_other.data if findings_form.left_kidney_other.data else None,
+        pancreas_findings=findings_form.pancreas_findings.data if findings_form.pancreas_findings.data else None,
+        bladder_filling=findings_form.bladder_filling.data if findings_form.bladder_filling.data else None,
+        bladder_stone_mass=findings_form.bladder_stone_mass.data if findings_form.bladder_stone_mass.data else None,
+        bladder_mucosal_irregularity=findings_form.bladder_mucosal_irregularity.data if findings_form.bladder_mucosal_irregularity.data else None,
+        prostate_findings=findings_form.prostate_findings.data if findings_form.prostate_findings.data else None,
+        ascites=findings_form.ascites.data if findings_form.ascites.data else None,
+        pleural_effusions=findings_form.pleural_effusions.data if findings_form.pleural_effusions.data else None,
+        para_aortic_lymph_nodes=findings_form.para_aortic_lymph_nodes.data if findings_form.para_aortic_lymph_nodes.data else None,
+        other_findings=findings_form.other_findings.data if findings_form.other_findings.data else None,
+        comments=findings_form.comments.data if findings_form.comments.data else None
+    )
+    return findings
 
 @bp.route('/')
 def index():
@@ -185,12 +293,13 @@ def new_patient():
 def new_case():
     """Create a new radiology case."""
     form = CaseForm()
+    findings_form = StructuredFindingsForm()
     
     # Populate patient choices
     patients = Patient.query.filter_by(created_by=current_user.id).order_by(Patient.last_name, Patient.first_name).all()
     form.patient_id.choices = [(0, 'Select a patient...')] + [(p.id, f"{p.full_name} (ID: {p.patient_id})") for p in patients]
     
-    if form.validate_on_submit():
+    if form.validate_on_submit() and findings_form.validate():
         try:
             # Generate unique case number
             case_count = Case.query.count() + 1
@@ -214,6 +323,12 @@ def new_case():
             db.session.add(case)
             db.session.flush()  # Get the case ID without committing
             
+            # Save structured findings if any provided
+            if has_any_findings(findings_form):
+                findings = create_findings_from_form(findings_form, case.id)
+                db.session.add(findings)
+                current_app.logger.info(f'Structured findings added to case {case.id}')
+            
             # Process multiple images
             image_fields = [form.image1, form.image2, form.image3, form.image4]
             saved_images = []
@@ -236,63 +351,66 @@ def new_case():
             
             if images_saved == 0:
                 flash('No valid images were uploaded. Please try again.', 'error')
-                return render_template('main/new_case.html', title='New Case', form=form)
+                return render_template('main/new_case.html', title='New Case', form=form, findings_form=findings_form)
             
             # Commit the case and images
             db.session.commit()
             
-            # Use primary image path for AI processing
-            file_path = case.image_path
-            
-            # Generate AI draft report automatically
+            # Use multi-agent pipeline for AI processing
             try:
-                current_app.logger.info(f'Starting AI draft report generation for case {case.formatted_case_number}')
-                
-                # Combine clinical information for AI
-                clinical_notes = f"Indication: {case.indication}\n"
-                clinical_notes += f"Number of images: {images_saved}\n"
-                if case.clinical_history:
-                    clinical_notes += f"Clinical History: {case.clinical_history}\n"
-                if case.body_part:
-                    clinical_notes += f"Body Part: {case.body_part}\n"
-                
-                raw_response, formatted_text = generate_draft_report(
-                    image_path=file_path,
-                    clinical_notes=clinical_notes
+                current_app.logger.info(
+                    f'Starting multi-agent pipeline for case {case.formatted_case_number}'
                 )
                 
-                current_app.logger.info(f'AI draft report generated, creating report record for case {case.formatted_case_number}')
+                # Run the multi-agent pipeline
+                pipeline_result = run_multi_agent_pipeline(case.id)
                 
-                # Create report record
-                report = Report(
-                    case_id=case.id,
-                    draft_json=raw_response,
-                    draft_text=formatted_text,
-                    is_finalized=False
-                )
-                
-                # Update case status
-                case.status = 'draft_ready'
-                
-                db.session.add(report)
-                db.session.commit()
-                
-                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images! AI draft report has been generated and is ready for review.', 'success')
-                current_app.logger.info(f'AI draft report generated successfully for case {case.formatted_case_number}')
-                
-            except AIServiceError as e:
-                # Log the error but don't fail the case creation
-                current_app.logger.error(f'AI service error for case {case.formatted_case_number}: {str(e)}')
-                case.status = 'ai_failed'
-                db.session.commit()
-                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images, but AI report generation failed: {str(e)}. The case has been marked for manual review.', 'warning')
+                if pipeline_result['success']:
+                    current_app.logger.info(
+                        f'Multi-agent pipeline completed successfully for case {case.formatted_case_number}. '
+                        f'Report ID: {pipeline_result["report_id"]}'
+                    )
+                    
+                    # Update case status
+                    case.status = 'draft_ready'
+                    db.session.commit()
+                    
+                    flash(
+                        f'Case {case.formatted_case_number} created successfully with {images_saved} images! '
+                        f'AI draft report has been generated and is ready for review.',
+                        'success'
+                    )
+                else:
+                    # Pipeline failed but case was created
+                    current_app.logger.error(
+                        f'Multi-agent pipeline failed for case {case.formatted_case_number}: '
+                        f'{pipeline_result["errors"]}'
+                    )
+                    case.status = 'ai_failed'
+                    db.session.commit()
+                    
+                    error_summary = '; '.join(pipeline_result['errors'][:2])  # Show first 2 errors
+                    flash(
+                        f'Case {case.formatted_case_number} created successfully with {images_saved} images, '
+                        f'but AI report generation failed: {error_summary}. '
+                        f'The case has been marked for manual review.',
+                        'warning'
+                    )
                 
             except Exception as e:
                 # Log unexpected errors
-                current_app.logger.error(f'Unexpected error during AI report generation for case {case.formatted_case_number}: {str(e)}', exc_info=True)
+                current_app.logger.error(
+                    f'Unexpected error during multi-agent pipeline for case {case.formatted_case_number}: {str(e)}',
+                    exc_info=True
+                )
                 case.status = 'ai_failed'
                 db.session.commit()
-                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images, but AI report generation encountered an error: {str(e)}. The case has been marked for manual review.', 'warning')
+                flash(
+                    f'Case {case.formatted_case_number} created successfully with {images_saved} images, '
+                    f'but AI report generation encountered an error: {str(e)}. '
+                    f'The case has been marked for manual review.',
+                    'warning'
+                )
             
             return redirect(url_for('main.dashboard'))
             
@@ -305,7 +423,7 @@ def new_case():
             flash('An error occurred while creating the case. Please try again.', 'error')
             current_app.logger.error(f'Case creation error for user {current_user.id}: {str(e)}')
     
-    return render_template('main/new_case.html', title='New Case', form=form)
+    return render_template('main/new_case.html', title='New Case', form=form, findings_form=findings_form)
 
 
 @bp.route('/upload', methods=['GET', 'POST'])
@@ -374,59 +492,61 @@ def upload():
             # Commit the case and images
             db.session.commit()
             
-            # Generate AI draft report using the primary image
+            # Use multi-agent pipeline for AI processing
             try:
-                primary_image_path = case.image_path  # First image
-                current_app.logger.info(f'Starting AI draft report generation for case {case.formatted_case_number} with {images_saved} images')
-                current_app.logger.info(f'Primary image path: {primary_image_path}')
-                
-                # Combine clinical information for AI
-                clinical_notes = f"Indication: {case.indication}\n"
-                clinical_notes += f"Number of images: {images_saved}\n"
-                if case.clinical_history:
-                    clinical_notes += f"Clinical History: {case.clinical_history}\n"
-                if case.body_part:
-                    clinical_notes += f"Body Part: {case.body_part}\n"
-                
-                current_app.logger.info(f'Clinical notes length: {len(clinical_notes)} characters')
-                
-                raw_response, formatted_text = generate_draft_report(
-                    image_path=primary_image_path,
-                    clinical_notes=clinical_notes
+                current_app.logger.info(
+                    f'Starting multi-agent pipeline for case {case.formatted_case_number} with {images_saved} images'
                 )
                 
-                current_app.logger.info(f'AI draft report generated, creating report record for case {case.id}')
+                # Run the multi-agent pipeline
+                pipeline_result = run_multi_agent_pipeline(case.id)
                 
-                # Create report record
-                report = Report(
-                    case_id=case.id,
-                    draft_json=raw_response,
-                    draft_text=formatted_text,
-                    is_finalized=False
-                )
-                
-                # Update case status
-                case.status = 'draft_ready'
-                
-                db.session.add(report)
-                db.session.commit()
-                
-                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images! AI draft report has been generated and is ready for review.', 'success')
-                current_app.logger.info(f'AI draft report generated successfully for case {case.formatted_case_number}')
-                
-            except AIServiceError as e:
-                # Log the error but don't fail the case creation
-                current_app.logger.error(f'AI service error for case {case.formatted_case_number}: {str(e)}')
-                case.status = 'ai_failed'
-                db.session.commit()
-                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images, but AI report generation failed: {str(e)}. The case has been marked for manual review.', 'warning')
+                if pipeline_result['success']:
+                    current_app.logger.info(
+                        f'Multi-agent pipeline completed successfully for case {case.formatted_case_number}. '
+                        f'Report ID: {pipeline_result["report_id"]}'
+                    )
+                    
+                    # Update case status
+                    case.status = 'draft_ready'
+                    db.session.commit()
+                    
+                    flash(
+                        f'Case {case.formatted_case_number} created successfully with {images_saved} images! '
+                        f'AI draft report has been generated and is ready for review.',
+                        'success'
+                    )
+                else:
+                    # Pipeline failed but case was created
+                    current_app.logger.error(
+                        f'Multi-agent pipeline failed for case {case.formatted_case_number}: '
+                        f'{pipeline_result["errors"]}'
+                    )
+                    case.status = 'ai_failed'
+                    db.session.commit()
+                    
+                    error_summary = '; '.join(pipeline_result['errors'][:2])  # Show first 2 errors
+                    flash(
+                        f'Case {case.formatted_case_number} created successfully with {images_saved} images, '
+                        f'but AI report generation failed: {error_summary}. '
+                        f'The case has been marked for manual review.',
+                        'warning'
+                    )
                 
             except Exception as e:
                 # Log unexpected errors
-                current_app.logger.error(f'Unexpected error during AI report generation for case {case.formatted_case_number}: {str(e)}', exc_info=True)
+                current_app.logger.error(
+                    f'Unexpected error during multi-agent pipeline for case {case.formatted_case_number}: {str(e)}',
+                    exc_info=True
+                )
                 case.status = 'ai_failed'
                 db.session.commit()
-                flash(f'Case {case.formatted_case_number} created successfully with {images_saved} images, but AI report generation encountered an error: {str(e)}. The case has been marked for manual review.', 'warning')
+                flash(
+                    f'Case {case.formatted_case_number} created successfully with {images_saved} images, '
+                    f'but AI report generation encountered an error: {str(e)}. '
+                    f'The case has been marked for manual review.',
+                    'warning'
+                )
             
             return redirect(url_for('main.dashboard'))
             
@@ -453,6 +573,264 @@ def view_case(case_id):
         report = case.reports[0]  # Get the first (and should be only) report
     
     return render_template('main/case_detail.html', title=f'Case #{case.id}', case=case, report=report)
+
+
+@bp.route('/case/<int:case_id>/review')
+@login_required
+def review_case(case_id):
+    """Review AI-generated report with HITL actions (approve/modify/reject)."""
+    case = Case.query.filter_by(id=case_id, user_id=current_user.id).first_or_404()
+    
+    # Check if case has a report
+    if not case.reports:
+        flash('No report found for this case.', 'error')
+        return redirect(url_for('main.view_case', case_id=case_id))
+    
+    report = case.reports[0]
+    
+    # Check if report is already finalized
+    if report.is_finalized:
+        flash('This report has already been finalized.', 'warning')
+        return redirect(url_for('main.view_case', case_id=case_id))
+    
+    return render_template('main/review.html', title=f'Review Case {case.formatted_case_number}', 
+                         case=case, report=report)
+
+
+@bp.route('/case/<int:case_id>/approve', methods=['POST'])
+@login_required
+def approve_case(case_id):
+    """Approve AI-generated report without modifications."""
+    case = Case.query.filter_by(id=case_id, user_id=current_user.id).first_or_404()
+    
+    # Check if case has a report
+    if not case.reports:
+        flash('No report found for this case.', 'error')
+        return redirect(url_for('main.view_case', case_id=case_id))
+    
+    report = case.reports[0]
+    
+    # Check if report is already finalized
+    if report.is_finalized:
+        flash('This report has already been finalized.', 'warning')
+        return redirect(url_for('main.view_case', case_id=case_id))
+    
+    try:
+        # Get confidence level from form
+        confidence_level = request.form.get('confidence_level', type=int)
+        notes = request.form.get('notes', '').strip()
+        
+        if not confidence_level or confidence_level < 1 or confidence_level > 5:
+            flash('Please select a valid confidence level.', 'error')
+            return redirect(url_for('main.review_case', case_id=case_id))
+        
+        # Finalize the report (use draft as final)
+        report.final_text = report.draft_text
+        report.is_finalized = True
+        report.updated_at = datetime.utcnow()
+        
+        # Update case status
+        case.status = 'completed'
+        
+        # Create feedback record
+        from app.models import Feedback
+        feedback = Feedback(
+            case_id=case.id,
+            report_id=report.id,
+            user_id=current_user.id,
+            action='approve',
+            confidence_level=confidence_level,
+            modifications={'notes': notes} if notes else None
+        )
+        db.session.add(feedback)
+        
+        db.session.commit()
+        
+        flash(f'Report for Case {case.formatted_case_number} has been approved and finalized!', 'success')
+        current_app.logger.info(
+            f'Report {report.id} approved by user {current_user.id} '
+            f'with confidence level {confidence_level}'
+        )
+        
+        return redirect(url_for('main.view_case', case_id=case_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('An error occurred while approving the report. Please try again.', 'error')
+        current_app.logger.error(f'Error approving report for case {case_id}: {str(e)}')
+        return redirect(url_for('main.review_case', case_id=case_id))
+
+
+@bp.route('/case/<int:case_id>/modify', methods=['POST'])
+@login_required
+def modify_case(case_id):
+    """Modify AI-generated report before finalizing."""
+    case = Case.query.filter_by(id=case_id, user_id=current_user.id).first_or_404()
+    
+    # Check if case has a report
+    if not case.reports:
+        flash('No report found for this case.', 'error')
+        return redirect(url_for('main.view_case', case_id=case_id))
+    
+    report = case.reports[0]
+    
+    # Check if report is already finalized
+    if report.is_finalized:
+        flash('This report has already been finalized.', 'warning')
+        return redirect(url_for('main.view_case', case_id=case_id))
+    
+    try:
+        # Get modified text and notes from form
+        modified_text = request.form.get('modified_text', '').strip()
+        notes = request.form.get('notes', '').strip()
+        
+        if not modified_text:
+            flash('Modified report text cannot be empty.', 'error')
+            return redirect(url_for('main.review_case', case_id=case_id))
+        
+        if not notes:
+            flash('Please provide a modification summary.', 'error')
+            return redirect(url_for('main.review_case', case_id=case_id))
+        
+        # Calculate diff between original and modified text
+        import difflib
+        original_lines = report.draft_text.splitlines() if report.draft_text else []
+        modified_lines = modified_text.splitlines()
+        
+        diff = list(difflib.unified_diff(
+            original_lines,
+            modified_lines,
+            lineterm='',
+            n=0  # No context lines
+        ))
+        
+        # Count changes
+        additions = sum(1 for line in diff if line.startswith('+') and not line.startswith('+++'))
+        deletions = sum(1 for line in diff if line.startswith('-') and not line.startswith('---'))
+        
+        # Update report with modified text
+        report.final_text = modified_text
+        report.is_finalized = True
+        report.updated_at = datetime.utcnow()
+        
+        # Update case status
+        case.status = 'completed'
+        
+        # Create feedback record with diff
+        from app.models import Feedback
+        feedback = Feedback(
+            case_id=case.id,
+            report_id=report.id,
+            user_id=current_user.id,
+            action='modify',
+            modifications={
+                'notes': notes,
+                'diff': diff[:100],  # Store first 100 lines of diff
+                'additions': additions,
+                'deletions': deletions,
+                'original_length': len(original_lines),
+                'modified_length': len(modified_lines)
+            }
+        )
+        db.session.add(feedback)
+        
+        db.session.commit()
+        
+        flash(
+            f'Report for Case {case.formatted_case_number} has been modified and finalized! '
+            f'({additions} additions, {deletions} deletions)',
+            'success'
+        )
+        current_app.logger.info(
+            f'Report {report.id} modified by user {current_user.id}: '
+            f'{additions} additions, {deletions} deletions'
+        )
+        
+        return redirect(url_for('main.view_case', case_id=case_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('An error occurred while modifying the report. Please try again.', 'error')
+        current_app.logger.error(f'Error modifying report for case {case_id}: {str(e)}')
+        return redirect(url_for('main.review_case', case_id=case_id))
+
+
+@bp.route('/case/<int:case_id>/reject', methods=['POST'])
+@login_required
+def reject_case(case_id):
+    """Reject AI-generated report and provide independent interpretation."""
+    case = Case.query.filter_by(id=case_id, user_id=current_user.id).first_or_404()
+    
+    # Check if case has a report
+    if not case.reports:
+        flash('No report found for this case.', 'error')
+        return redirect(url_for('main.view_case', case_id=case_id))
+    
+    report = case.reports[0]
+    
+    # Check if report is already finalized
+    if report.is_finalized:
+        flash('This report has already been finalized.', 'warning')
+        return redirect(url_for('main.view_case', case_id=case_id))
+    
+    try:
+        # Get rejection details from form
+        rejection_reason = request.form.get('rejection_reason', '').strip()
+        rejection_details = request.form.get('rejection_details', '').strip()
+        correct_interpretation = request.form.get('correct_interpretation', '').strip()
+        
+        if not rejection_reason:
+            flash('Please select a rejection reason.', 'error')
+            return redirect(url_for('main.review_case', case_id=case_id))
+        
+        if not rejection_details:
+            flash('Please provide detailed explanation for rejection.', 'error')
+            return redirect(url_for('main.review_case', case_id=case_id))
+        
+        # Mark report as rejected (not finalized, clear final_text)
+        report.final_text = None
+        report.is_finalized = False
+        report.updated_at = datetime.utcnow()
+        
+        # Update case status to indicate manual review needed
+        case.status = 'rejected'
+        
+        # Create feedback record with rejection details
+        from app.models import Feedback
+        feedback = Feedback(
+            case_id=case.id,
+            report_id=report.id,
+            user_id=current_user.id,
+            action='reject',
+            rejection_reason=rejection_details,
+            modifications={
+                'rejection_category': rejection_reason,
+                'rejection_details': rejection_details,
+                'correct_interpretation': correct_interpretation,
+                'rejected_draft': report.draft_text
+            }
+        )
+        db.session.add(feedback)
+        
+        db.session.commit()
+        
+        flash(
+            f'Report for Case {case.formatted_case_number} has been rejected. '
+            f'The case is now marked for manual review.',
+            'warning'
+        )
+        current_app.logger.info(
+            f'Report {report.id} rejected by user {current_user.id}: '
+            f'Reason: {rejection_reason}'
+        )
+        
+        return redirect(url_for('main.view_case', case_id=case_id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash('An error occurred while rejecting the report. Please try again.', 'error')
+        current_app.logger.error(f'Error rejecting report for case {case_id}: {str(e)}')
+        return redirect(url_for('main.review_case', case_id=case_id))
 
 
 @bp.route('/case/<int:case_id>/edit', methods=['GET', 'POST'])
@@ -963,6 +1341,39 @@ def serve_ai_test_image(result_id):
         return redirect(url_for('main.view_ai_test_result', result_id=result_id))
 
 
+@bp.route('/ai-test/<int:test_id>/findings')
+@login_required
+def view_ai_test_findings(test_id):
+    """View structured findings for an AI test result."""
+    test_result = AITestResult.query.filter_by(id=test_id, user_id=current_user.id).first_or_404()
+    
+    # Get AI-generated findings for this test
+    findings = AIGeneratedFindings.query.filter_by(ai_test_result_id=test_id).first()
+    
+    return render_template('main/ai_test_findings.html',
+                         title=f'AI Test Findings - #{test_id}',
+                         test_result=test_result,
+                         findings=findings)
+
+
+@bp.route('/ai-test/<int:test_id>/image')
+@login_required
+def view_ai_test_image(test_id):
+    """Serve the AI test image."""
+    test_result = AITestResult.query.filter_by(id=test_id, user_id=current_user.id).first_or_404()
+    
+    if not test_result.image_path or not os.path.exists(test_result.image_path):
+        flash('Image file not found.', 'error')
+        return redirect(url_for('main.view_ai_test_findings', test_id=test_id))
+    
+    try:
+        return send_file(test_result.image_path, as_attachment=False)
+    except Exception as e:
+        current_app.logger.error(f'Error serving AI test image for test {test_id}: {str(e)}')
+        flash('Error loading image.', 'error')
+        return redirect(url_for('main.view_ai_test_findings', test_id=test_id))
+
+
 @bp.route('/ai-test/result/<int:result_id>/evaluate', methods=['POST'])
 @login_required
 def evaluate_ai_test_result(result_id):
@@ -1022,3 +1433,277 @@ def delete_ai_test_result(result_id):
         current_app.logger.error(f'Error deleting AI test result {result_id}: {str(e)}')
     
     return redirect(url_for('main.ai_test_results_list'))
+
+
+
+# ============================================================================
+# Structured Findings Evaluation Routes
+# ============================================================================
+
+def extract_field_correctness_from_form(form_data):
+    """Extract field correctness data from evaluation form."""
+    field_correctness = {}
+    
+    # Define all possible finding fields
+    finding_fields = [
+        'liver_size', 'liver_texture', 'liver_focal_defect', 'liver_cbd', 'liver_pv',
+        'spleen_size', 'spleen_focal_defect',
+        'gb_calculus', 'gb_wall_edema',
+        'right_kidney_size', 'right_kidney_texture', 'right_kidney_other',
+        'left_kidney_size', 'left_kidney_texture', 'left_kidney_other',
+        'pancreas_findings',
+        'bladder_filling', 'bladder_stone_mass', 'bladder_mucosal_irregularity',
+        'prostate_findings',
+        'ascites', 'pleural_effusions', 'para_aortic_lymph_nodes', 'other_findings',
+        'comments'
+    ]
+    
+    # Extract correctness for each field
+    for field in finding_fields:
+        checkbox_value = form_data.get(f'correct_{field}')
+        if checkbox_value is not None:
+            field_correctness[field] = checkbox_value == 'on'
+    
+    return field_correctness
+
+
+def calculate_organ_metrics(evaluations):
+    """Calculate accuracy metrics per organ system."""
+    from app.models import FindingsEvaluation
+    
+    organ_groups = {
+        'Liver': ['liver_size', 'liver_texture', 'liver_focal_defect', 'liver_cbd', 'liver_pv'],
+        'Spleen': ['spleen_size', 'spleen_focal_defect'],
+        'Gall Bladder': ['gb_calculus', 'gb_wall_edema'],
+        'Right Kidney': ['right_kidney_size', 'right_kidney_texture', 'right_kidney_other'],
+        'Left Kidney': ['left_kidney_size', 'left_kidney_texture', 'left_kidney_other'],
+        'Pancreas': ['pancreas_findings'],
+        'Urinary Bladder': ['bladder_filling', 'bladder_stone_mass', 'bladder_mucosal_irregularity'],
+        'Prostate': ['prostate_findings'],
+        'Additional': ['ascites', 'pleural_effusions', 'para_aortic_lymph_nodes', 'other_findings']
+    }
+    
+    organ_metrics = {}
+    
+    for organ_name, fields in organ_groups.items():
+        total_fields = 0
+        correct_fields = 0
+        
+        for evaluation in evaluations:
+            field_correctness = evaluation.field_correctness or {}
+            for field in fields:
+                if field in field_correctness:
+                    total_fields += 1
+                    if field_correctness[field]:
+                        correct_fields += 1
+        
+        if total_fields > 0:
+            accuracy = (correct_fields / total_fields) * 100
+            organ_metrics[organ_name] = {
+                'total': total_fields,
+                'correct': correct_fields,
+                'accuracy': round(accuracy, 2)
+            }
+    
+    return organ_metrics
+
+
+def calculate_field_metrics(evaluations):
+    """Calculate accuracy metrics per field type."""
+    from app.models import FindingsEvaluation
+    
+    field_metrics = {}
+    
+    for evaluation in evaluations:
+        field_correctness = evaluation.field_correctness or {}
+        for field, is_correct in field_correctness.items():
+            if field not in field_metrics:
+                field_metrics[field] = {'total': 0, 'correct': 0}
+            
+            field_metrics[field]['total'] += 1
+            if is_correct:
+                field_metrics[field]['correct'] += 1
+    
+    # Calculate accuracy percentages
+    for field, stats in field_metrics.items():
+        if stats['total'] > 0:
+            stats['accuracy'] = round((stats['correct'] / stats['total']) * 100, 2)
+        else:
+            stats['accuracy'] = 0
+    
+    # Sort by field name
+    field_metrics = dict(sorted(field_metrics.items()))
+    
+    return field_metrics
+
+
+def calculate_temporal_metrics(evaluations):
+    """Calculate temporal trends in accuracy."""
+    from app.models import FindingsEvaluation
+    from datetime import datetime, timedelta
+    from collections import defaultdict
+    
+    # Group evaluations by date
+    daily_metrics = defaultdict(lambda: {'total': 0, 'correct': 0})
+    
+    for evaluation in evaluations:
+        date_key = evaluation.created_at.date()
+        daily_metrics[date_key]['total'] += evaluation.total_fields or 0
+        daily_metrics[date_key]['correct'] += evaluation.correct_fields or 0
+    
+    # Calculate accuracy for each day
+    temporal_data = []
+    for date_key in sorted(daily_metrics.keys()):
+        stats = daily_metrics[date_key]
+        if stats['total'] > 0:
+            accuracy = (stats['correct'] / stats['total']) * 100
+            temporal_data.append({
+                'date': date_key.strftime('%Y-%m-%d'),
+                'total': stats['total'],
+                'correct': stats['correct'],
+                'accuracy': round(accuracy, 2)
+            })
+    
+    return temporal_data
+
+
+@bp.route('/ai-test/result/<int:result_id>/evaluate-findings', methods=['GET', 'POST'])
+@login_required
+def evaluate_findings(result_id):
+    """Evaluate AI-generated structured findings."""
+    from app.models import AITestResult, AIGeneratedFindings, FindingsEvaluation
+    
+    # Get the AI test result
+    test_result = AITestResult.query.filter_by(
+        id=result_id,
+        user_id=current_user.id
+    ).first_or_404()
+    
+    # Get AI-generated findings for this test result
+    ai_findings = AIGeneratedFindings.query.filter_by(
+        ai_test_result_id=result_id
+    ).first()
+    
+    if not ai_findings:
+        flash('No AI-generated findings found for this test result.', 'error')
+        return redirect(url_for('main.view_ai_test_result', result_id=result_id))
+    
+    # Check if already evaluated
+    existing_evaluation = FindingsEvaluation.query.filter_by(
+        ai_finding_id=ai_findings.id,
+        user_id=current_user.id
+    ).first()
+    
+    if request.method == 'POST':
+        try:
+            # Extract field correctness from form
+            field_correctness = extract_field_correctness_from_form(request.form)
+            
+            # Calculate metrics
+            total_fields = len(field_correctness)
+            correct_fields = sum(1 for v in field_correctness.values() if v)
+            accuracy = (correct_fields / total_fields * 100) if total_fields > 0 else 0
+            
+            # Get evaluation notes
+            evaluation_notes = request.form.get('evaluation_notes', '').strip()
+            
+            if existing_evaluation:
+                # Update existing evaluation
+                existing_evaluation.field_correctness = field_correctness
+                existing_evaluation.total_fields = total_fields
+                existing_evaluation.correct_fields = correct_fields
+                existing_evaluation.accuracy_percentage = accuracy
+                existing_evaluation.evaluation_notes = evaluation_notes
+                existing_evaluation.created_at = datetime.utcnow()
+                
+                flash(f'Evaluation updated! Accuracy: {accuracy:.1f}%', 'success')
+            else:
+                # Create new evaluation
+                evaluation = FindingsEvaluation(
+                    ai_finding_id=ai_findings.id,
+                    user_id=current_user.id,
+                    field_correctness=field_correctness,
+                    total_fields=total_fields,
+                    correct_fields=correct_fields,
+                    accuracy_percentage=accuracy,
+                    evaluation_notes=evaluation_notes
+                )
+                db.session.add(evaluation)
+                
+                flash(f'Evaluation saved! Accuracy: {accuracy:.1f}%', 'success')
+            
+            db.session.commit()
+            
+            current_app.logger.info(
+                f'Findings evaluation saved for AI finding {ai_findings.id} by user {current_user.id}. '
+                f'Accuracy: {accuracy:.1f}%'
+            )
+            
+            return redirect(url_for('main.view_ai_test_result', result_id=result_id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash('An error occurred while saving the evaluation. Please try again.', 'error')
+            current_app.logger.error(f'Error saving findings evaluation: {str(e)}')
+    
+    return render_template('main/evaluate_findings.html',
+                         title='Evaluate AI Findings',
+                         test_result=test_result,
+                         findings=ai_findings,
+                         evaluation=existing_evaluation)
+
+
+@bp.route('/findings/metrics')
+@login_required
+def findings_metrics():
+    """View accuracy metrics dashboard for AI-generated findings."""
+    from app.models import FindingsEvaluation, AIGeneratedFindings, AITestResult
+    
+    # Get all evaluations for current user
+    evaluations = db.session.query(FindingsEvaluation)\
+        .join(AIGeneratedFindings)\
+        .join(AITestResult, AIGeneratedFindings.ai_test_result_id == AITestResult.id)\
+        .filter(AITestResult.user_id == current_user.id)\
+        .all()
+    
+    if not evaluations:
+        return render_template('main/findings_metrics.html',
+                             title='Findings Metrics',
+                             has_data=False,
+                             total_evaluations=0)
+    
+    # Calculate overall metrics
+    total_evaluations = len(evaluations)
+    total_fields_evaluated = sum(e.total_fields or 0 for e in evaluations)
+    total_correct_fields = sum(e.correct_fields or 0 for e in evaluations)
+    overall_accuracy = (total_correct_fields / total_fields_evaluated * 100) if total_fields_evaluated > 0 else 0
+    
+    # Calculate per-organ metrics
+    organ_metrics = calculate_organ_metrics(evaluations)
+    
+    # Calculate per-field metrics
+    field_metrics = calculate_field_metrics(evaluations)
+    
+    # Calculate temporal trends
+    temporal_metrics = calculate_temporal_metrics(evaluations)
+    
+    # Get recent evaluations
+    recent_evaluations = db.session.query(FindingsEvaluation)\
+        .join(AIGeneratedFindings)\
+        .join(AITestResult, AIGeneratedFindings.ai_test_result_id == AITestResult.id)\
+        .filter(AITestResult.user_id == current_user.id)\
+        .order_by(FindingsEvaluation.created_at.desc())\
+        .limit(10)\
+        .all()
+    
+    return render_template('main/findings_metrics.html',
+                         title='Findings Metrics Dashboard',
+                         has_data=True,
+                         total_evaluations=total_evaluations,
+                         total_fields_evaluated=total_fields_evaluated,
+                         total_correct_fields=total_correct_fields,
+                         overall_accuracy=round(overall_accuracy, 2),
+                         organ_metrics=organ_metrics,
+                         field_metrics=field_metrics,
+                         temporal_metrics=temporal_metrics,
+                         recent_evaluations=recent_evaluations)

@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-chart-line me-2"></i>Findings Accuracy Metrics</h2>
+                    <p class="text-muted mb-0">Performance evaluation dashboard for AI-generated findings</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+
+            {% if not has_data %}
+            <!-- No Data Message -->
+            <div class="card shadow">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-chart-bar fa-4x text-muted mb-3"></i>
+                    <h4>No Evaluation Data Available</h4>
+                    <p class="text-muted">
+                        Start evaluating AI-generated findings to see accuracy metrics here.
+                    </p>
+                    <a href="{{ url_for('main.ai_test_results_list') }}" class="btn btn-primary mt-3">
+                        <i class="fas fa-list me-1"></i>View AI Test Results
+                    </a>
+                </div>
+            </div>
+            {% else %}
+
+            <!-- Overall Statistics -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card shadow text-center">
+                        <div class="card-body">
+                            <i class="fas fa-clipboard-check fa-2x text-primary mb-2"></i>
+                            <h3 class="mb-0">{{ total_evaluations }}</h3>
+                            <p class="text-muted mb-0">Total Evaluations</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow text-center">
+                        <div class="card-body">
+                            <i class="fas fa-list-check fa-2x text-info mb-2"></i>
+                            <h3 class="mb-0">{{ total_fields_evaluated }}</h3>
+                            <p class="text-muted mb-0">Fields Evaluated</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow text-center">
+                        <div class="card-body">
+                            <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                            <h3 class="mb-0">{{ total_correct_fields }}</h3>
+                            <p class="text-muted mb-0">Correct Fields</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow text-center">
+                        <div class="card-body">
+                            <i class="fas fa-percentage fa-2x text-warning mb-2"></i>
+                            <h3 class="mb-0">{{ overall_accuracy }}%</h3>
+                            <p class="text-muted mb-0">Overall Accuracy</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Organ System Metrics -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card shadow">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-heartbeat me-2"></i>Accuracy by Organ System
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if organ_metrics %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Organ System</th>
+                                            <th class="text-center">Total Fields</th>
+                                            <th class="text-center">Correct Fields</th>
+                                            <th class="text-center">Accuracy</th>
+                                            <th>Progress</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for organ_name, metrics in organ_metrics.items() %}
+                                        <tr>
+                                            <td><strong>{{ organ_name }}</strong></td>
+                                            <td class="text-center">{{ metrics.total }}</td>
+                                            <td class="text-center">{{ metrics.correct }}</td>
+                                            <td class="text-center">
+                                                <span class="badge {% if metrics.accuracy >= 90 %}bg-success{% elif metrics.accuracy >= 70 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                    {{ metrics.accuracy }}%
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="progress" style="height: 25px;">
+                                                    <div class="progress-bar {% if metrics.accuracy >= 90 %}bg-success{% elif metrics.accuracy >= 70 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                         role="progressbar" 
+                                                         style="width: {{ metrics.accuracy }}%;" 
+                                                         aria-valuenow="{{ metrics.accuracy }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                        {{ metrics.accuracy }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted text-center mb-0">No organ-specific metrics available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Field-Level Metrics -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card shadow">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-list me-2"></i>Accuracy by Field Type
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if field_metrics %}
+                            <div class="table-responsive">
+                                <table class="table table-hover table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Field Name</th>
+                                            <th class="text-center">Total</th>
+                                            <th class="text-center">Correct</th>
+                                            <th class="text-center">Accuracy</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for field_name, metrics in field_metrics.items() %}
+                                        <tr>
+                                            <td>{{ field_name.replace('_', ' ').title() }}</td>
+                                            <td class="text-center">{{ metrics.total }}</td>
+                                            <td class="text-center">{{ metrics.correct }}</td>
+                                            <td class="text-center">
+                                                <span class="badge {% if metrics.accuracy >= 90 %}bg-success{% elif metrics.accuracy >= 70 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                    {{ metrics.accuracy }}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-muted text-center mb-0">No field-specific metrics available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Temporal Trends -->
+            {% if temporal_metrics %}
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card shadow">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-calendar-alt me-2"></i>Accuracy Trends Over Time
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th class="text-center">Total Fields</th>
+                                            <th class="text-center">Correct Fields</th>
+                                            <th class="text-center">Accuracy</th>
+                                            <th>Trend</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for day_data in temporal_metrics %}
+                                        <tr>
+                                            <td>{{ day_data.date }}</td>
+                                            <td class="text-center">{{ day_data.total }}</td>
+                                            <td class="text-center">{{ day_data.correct }}</td>
+                                            <td class="text-center">
+                                                <span class="badge {% if day_data.accuracy >= 90 %}bg-success{% elif day_data.accuracy >= 70 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                    {{ day_data.accuracy }}%
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="progress" style="height: 20px;">
+                                                    <div class="progress-bar {% if day_data.accuracy >= 90 %}bg-success{% elif day_data.accuracy >= 70 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                         role="progressbar" 
+                                                         style="width: {{ day_data.accuracy }}%;" 
+                                                         aria-valuenow="{{ day_data.accuracy }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Recent Evaluations -->
+            {% if recent_evaluations %}
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card shadow">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-history me-2"></i>Recent Evaluations
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th class="text-center">Fields Evaluated</th>
+                                            <th class="text-center">Correct</th>
+                                            <th class="text-center">Accuracy</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for evaluation in recent_evaluations %}
+                                        <tr>
+                                            <td>{{ evaluation.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                            <td class="text-center">{{ evaluation.total_fields }}</td>
+                                            <td class="text-center">{{ evaluation.correct_fields }}</td>
+                                            <td class="text-center">
+                                                <span class="badge {% if evaluation.accuracy_percentage >= 90 %}bg-success{% elif evaluation.accuracy_percentage >= 70 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                    {{ evaluation.accuracy_percentage|round(1) }}%
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if evaluation.ai_finding.ai_test_result_id %}
+                                                <a href="{{ url_for('main.view_ai_test_result', result_id=evaluation.ai_finding.ai_test_result_id) }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye me-1"></i>View
+                                                </a>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Export Options -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card shadow">
+                        <div class="card-body text-center">
+                            <h5 class="mb-3">Export Metrics</h5>
+                            <p class="text-muted">Download metrics data for further analysis</p>
+                            <button class="btn btn-outline-primary me-2" disabled>
+                                <i class="fas fa-file-csv me-1"></i>Export to CSV
+                            </button>
+                            <button class="btn btn-outline-success" disabled>
+                                <i class="fas fa-file-excel me-1"></i>Export to Excel
+                            </button>
+                            <p class="small text-muted mt-2">Export functionality coming soon</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.progress {
+    background-color: #e9ecef;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.badge {
+    font-size: 0.9rem;
+    padding: 0.4em 0.8em;
+}
+
+.card {
+    border: none;
+}
+
+.card-header h5 {
+    font-size: 1.1rem;
+}
+</style>
+{% endblock %}
