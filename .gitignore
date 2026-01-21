@@ -124,8 +124,6 @@ Thumbs.db
 # Application specific
 static/uploads/*
 !static/uploads/.gitkeep
-migrations/versions/*
-!migrations/versions/.gitkeep
 
 # Log files
 *.log
