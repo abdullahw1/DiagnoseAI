@@ -18,6 +18,6 @@ flask db upgrade
 echo "Migration complete. Current revision:"
 flask db current
 
-# Start the application
+# Start the application with increased timeout for AI processing
 echo "Starting application..."
-exec gunicorn --bind 0.0.0.0:${PORT:-8000} main:app
+exec gunicorn --bind 0.0.0.0:${PORT:-8000} --timeout 300 --workers 2 main:app
