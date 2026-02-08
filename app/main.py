@@ -344,6 +344,9 @@ def new_case():
                 status='processing'
             )
             
+            # Initialize saved_images list before any operations
+            saved_images = []
+            
             # Save case to get ID
             db.session.add(case)
             db.session.flush()  # Get the case ID without committing
@@ -356,7 +359,6 @@ def new_case():
             
             # Process multiple images
             image_fields = [form.image1, form.image2, form.image3, form.image4]
-            saved_images = []
             images_saved = 0
             
             for i, image_field in enumerate(image_fields):
